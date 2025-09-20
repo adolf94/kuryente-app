@@ -1,0 +1,8 @@
+webConfig = {
+    
+    api : "http://localhost:7071/api",
+    "clientId": "929828408348-6l9atirafthgfs7as73li9s0cc1q6fb1.apps.googleusercontent.com",
+    "redirectUri": "https://locahost:5173"
+
+
+}

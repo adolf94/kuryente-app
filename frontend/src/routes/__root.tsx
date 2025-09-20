@@ -1,0 +1,29 @@
+
+
+import { Box } from '@mui/material';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { Outlet, createRootRoute, createRootRouteWithContext } from '@tanstack/react-router';
+import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
+import { ConfirmProvider } from 'material-ui-confirm';
+import React from 'react'
+import { type UserInfo, AuthContext} from '../components/GoogleLoginWrapper';
+
+
+const RootComponent = ()=>{
+
+
+    return <>
+        <ConfirmProvider>
+            <GoogleOAuthProvider clientId={window.webConfig.clientId}>
+                    <Box sx={{width: "100%"}}>
+                        <Outlet />
+                    </Box>
+            </GoogleOAuthProvider>
+        </ConfirmProvider>
+        <TanStackRouterDevtools initialIsOpen={false} />
+    </>
+}
+
+export const Route = createRootRouteWithContext<{user: UserInfo}>()({
+    component: RootComponent
+})
