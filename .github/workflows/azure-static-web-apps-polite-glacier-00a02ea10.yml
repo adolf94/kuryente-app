@@ -1,19 +1,17 @@
 name: Azure Static Web Apps CI/CD
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches:
-      - main
+  workflow_dispatch:
+
+environment:
+
 
 jobs:
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
+    environment: AZURE
     permissions:
        id-token: write
        contents: read
@@ -22,6 +20,18 @@ jobs:
         with:
           submodules: true
           lfs: false
+          
+      - name: Substitute JSON 
+        uses: restackio/update-json-file-action@2.1
+        with:
+          file: frontend/public/config.json
+          fields: '{"api":"${{ vars.API }}", "redirectUri":"${{ vars.REDIRECT_URI }}"}'
+          
+      - name: Move/Rename config.json to js
+        run: |
+              echo window.webConfig= > config.js
+              cat config.json >> config.js
+        working-directory: frontend/public
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
