@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "backend-1"
+		},
+		{
+			"path": "backend"
+		},
+		{
+			"path": "frontend"
+		}
+	],
+	"settings": {
+		"debug.internalConsoleOptions": "neverOpen"
+	}
+}

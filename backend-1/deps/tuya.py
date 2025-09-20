@@ -18,7 +18,7 @@ TUYA_ENABLED = os.environ["TUYA_ENABLED"]
 
 
 def switch_device(shouldOn : bool):
-    if(TUYA_ENABLED == False):
+    if(TUYA_ENABLED.lower() == "false"):
         return
     access_token = get_token()
     api_method = "POST"

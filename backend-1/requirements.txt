@@ -3,3 +3,13 @@
 # azure-monitor-opentelemetry
 
 azure-functions
+azure-cosmos
+azure-identity
+Werkzeug
+uuid7
+requests
+azure.storage.blob 
+azure.identity
+google-genai
+Pillow
+pytz

@@ -7,7 +7,7 @@ from azure.identity import DefaultAzureCredential
 
 
 
-account_url = os.getenv("BLOB_SCREENSHOT_UPLOAD")  # e.g., "https://mydatalake.blob.core.windows.net"
+account_url = os.getenv("BLOB_SCREENSHOT_UPLOAD", "")  # e.g., "https://mydatalake.blob.core.windows.net"
 connection_string = os.getenv("BLOB_CONNECTION_STRING", "")  # e.g., "https://mydatalake.blob.core.windows.net"
 container_name = "transact-screenshots" # Replace with your container name
 

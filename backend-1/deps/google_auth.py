@@ -12,9 +12,9 @@ def exchange_code_for_tokens(code: str) -> dict | None:
     """
     Exchanges an authorization code for Google API tokens.
     """
-    client_id = os.environ.get("GOOGLE_CLIENT_ID")
-    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
-    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI")
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI", "")
 
     if not all([client_id, client_secret, redirect_uri]):
         logging.error("Google API credentials are not configured.")
