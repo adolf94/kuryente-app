@@ -97,6 +97,47 @@ def upload_proof(req: func.HttpRequest) -> func.HttpResponse:
         #     blob_client = blob_service_client.get_blob_client(container=container_name, blob_name=blob_name)
 
 
+@app.route(route="record_payment", auth_level=func.AuthLevel.ANONYMOUS)
+def record_payment(req: func.HttpRequest) -> func.HttpResponse:
+    
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    if(user == None):
+        return func.HttpResponse("", status_code=401)
+
+    if(user["role"] != "admin"):
+        return func.HttpResponse("", status_code=403)
+    
+    body = req.get_json()
+
+    new_item = {
+        "id" : uuid7str(),
+        "PartitionKey" : "default",
+        "Status": "Approved",
+        "DateAdded": datetime.datetime.now(tz=datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "File": body
+    }
+
+    add_to_app("PaymentsUploads", new_item)
+
+    current_timer = get_latest_from_container("TimerDetails")
+    last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
+    new_disconnect_time = last_disconnect_time + datetime.timedelta(days=body["days"])
+    new_data = {
+        "id": uuid7str(),
+        "PartitionKey": "default",
+        "DisconnectTime": new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "PaymentId": new_item["id"],
+        "Rate": current_timer["Rate"]
+    }
+    switch_device(True)
+    add_to_app("TimerDetails",new_data)
+
+    return func.HttpResponse(json.dumps({
+        "timer" : new_data,
+        "extend" : body["days"],
+        "payment": new_item
+    }), mimetype="application/json", status_code=200)
+
 @app.route(route="decide_payment", auth_level=func.AuthLevel.ANONYMOUS)
 def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
 
@@ -144,7 +185,7 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
         "timer" : new_data,
         "extend" : days_to_add,
         "payment": item
-    }), status_code=200)
+    }), mimetype="application/json", status_code=200)
 
 
 @app.route(route="payments", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)

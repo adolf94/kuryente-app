@@ -49,7 +49,6 @@ const ImageModal = ()=>{
                 "Content-Type": "multipart/form-data"
             }
         }).then(res=>{
-            console.log(res)
             setResult(res.data)
             setAgree(res.data.recipientBank.toLowerCase().indexOf("gcash") > -1)
         })

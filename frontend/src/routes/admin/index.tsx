@@ -7,6 +7,7 @@ import api from '../../utils/api'
 import numeral from 'numeral'
 import moment from 'moment'
 import { useConfirm } from 'material-ui-confirm'
+import AddPaymentDialog from '../../components/index/admin/AddPaymentDialog'
 
 export const Route = createFileRoute('/admin/')({
   component: RouteComponent,
@@ -78,9 +79,7 @@ function RouteComponent() {
                 </Typography>
               </Box>
               <Box>
-                <Button>
-                  Add
-                </Button>
+                <AddPaymentDialog onCreate={(data)=>setData(prev=>[data.payment,...prev])}/>
               </Box>
             </Box>
           </CardContent>
@@ -118,8 +117,8 @@ function RouteComponent() {
                         </IconButton>
                         {e.File?.recipientBank}
                       </TableCell>
-                      <TableCell>
-                        {numeral(e.File.amount).format("0,0")}
+                      <TableCell sx={{textAlign:"right"}}>
+                        {numeral(e.File.amount).format("0,0.00")}
                       </TableCell>
                       <TableCell>
                         <Chip size="small" color='success' label="12D@P150"/>

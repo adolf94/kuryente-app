@@ -41,18 +41,25 @@ export const AuthContextProvider = ({children})=>{
     const [initialized, setInitialized] = useState(false)
     useEffect(()=>{
         let token = window.localStorage.getItem("access_token")
-        if (!token) return setInitialized(true)
+        if (!token) {
+            console.log("no token")
+            setInitialized(true)
+            return
+        }
         
         const tokenJson = jwtDecode<JwtPayload & UserInfo>(token!)
         console.debug("tokenJson", moment(tokenJson.exp! * 1000).fromNow());
-        if (moment().add(1, "minute").isAfter(tokenJson.exp! * 1000))
-            return setInitialized(true)
-        setUser(tokenJson)
+        if (moment().add(1, "minute").isAfter(tokenJson.exp! * 1000)){
+            console.log("token expired")
+            window.localStorage.removeItem("access_token")
+            return
+        }
+        setUser({...tokenJson, isAuthenticated: true})
         setInitialized(true)
 
     },[])
 
-    return !initialized ? <></> 
+    return !initialized ? <>Authenticating</> 
     :<AuthContext.Provider value={{user, setUser}}>
         {children}
     </AuthContext.Provider>
