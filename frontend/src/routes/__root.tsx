@@ -7,6 +7,7 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import { ConfirmProvider } from 'material-ui-confirm';
 import React from 'react'
 import { type UserInfo, AuthContext} from '../components/GoogleLoginWrapper';
+import Loader from '../components/Loader';
 
 
 const RootComponent = ()=>{
@@ -14,11 +15,13 @@ const RootComponent = ()=>{
 
     return <>
         <ConfirmProvider>
-            <GoogleOAuthProvider clientId={window.webConfig.clientId}>
-                    <Box sx={{width: "100%"}}>
-                        <Outlet />
-                    </Box>
-            </GoogleOAuthProvider>
+            <Loader>
+                <GoogleOAuthProvider clientId={window.webConfig.clientId}>
+                        <Box sx={{width: "100%"}}>
+                            <Outlet />
+                        </Box>
+                </GoogleOAuthProvider>
+            </Loader>
         </ConfirmProvider>
         <TanStackRouterDevtools initialIsOpen={false} />
     </>

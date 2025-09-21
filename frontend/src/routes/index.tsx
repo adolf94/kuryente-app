@@ -108,9 +108,13 @@ const Index = ()=>{
             <Card>
                 <CardContent>
                     <Typography variant='h6'>Login to view history</Typography>
+                    
+                    {user.isAuthenticated ?
                     <Box display="block" sx={{pt:1, textAlign:"center"}}>
+                        <Button variant='contained' size="large" loading={loading} onClick={()=>navigate({to:"/user"})}>Go to Dashboard</Button>
+                    </Box>: <Box display="block" sx={{pt:1, textAlign:"center"}}>
                         <Button variant='contained' size="large" loading={loading} onClick={loginGoogle}>Login with Google</Button>
-                    </Box>
+                    </Box>}
                 </CardContent>
             </Card>
             </Box>

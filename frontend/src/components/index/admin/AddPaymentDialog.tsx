@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { useConfirm } from "material-ui-confirm"
 import moment from "moment"
 import api from "../../../utils/api"
+import { useLoader } from "../../Loader"
 
 
 const AddPaymentDialog = (props: any)=>{
@@ -17,6 +18,8 @@ const AddPaymentDialog = (props: any)=>{
     })
     const confirm = useConfirm()
 
+    const {showLoading,hideLoading} = useLoader()
+    
     const onAmountChange = (evt)=>{
         let days = Math.floor(evt / 150)
         setForm({...form, amount: evt, days: days})
@@ -29,6 +32,7 @@ const AddPaymentDialog = (props: any)=>{
           }).then((val)=>{
                 if(!val) return
             if(val.confirmed)
+                showLoading()
               return api.post("/record_payment", form)
                 .then((res)=>{
 
@@ -39,6 +43,7 @@ const AddPaymentDialog = (props: any)=>{
                     })
                     props.onCreate(res.data)
                     setShow(false)
+                    hideLoading()
                     setForm({
                         amount: 0,
                         description: "",

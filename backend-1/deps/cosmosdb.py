@@ -71,6 +71,13 @@ def add_to_finance(container, record):
     container.upsert_item(record)
     return record
 
+def get_file_by_id(id):
+    db = get_db(os.environ["FINANCE_DB"])
+    container = db.get_container_client("Files")
+    items = container.query_items("select * from c where c.id=@id", parameters=[{"name":"@id", "value":id}], partition_key="default")
+    item = next(items, None)
+    return item
+
 def check_notifs_gcash(data):
     db = get_db(os.environ["FINANCE_DB"])
     container = db.get_container_client("HookMessages")

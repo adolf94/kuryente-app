@@ -8,6 +8,7 @@ import numeral from 'numeral'
 import moment from 'moment'
 import { useConfirm } from 'material-ui-confirm'
 import AddPaymentDialog from '../../components/index/admin/AddPaymentDialog'
+import ViewImageDialog from '../../components/index/admin/ViewImageDialog'
 
 export const Route = createFileRoute('/admin/')({
   component: RouteComponent,
@@ -112,9 +113,7 @@ function RouteComponent() {
                         {moment(e.File.datetime).format("MMM DD")}
                       </TableCell>
                       <TableCell>
-                        <IconButton size='small'>
-                          <Image fontSize='small' />
-                        </IconButton>
+                        {e.File.fileId && <ViewImageDialog fileId={e.File.fileId} />}
                         {e.File?.recipientBank}
                       </TableCell>
                       <TableCell sx={{textAlign:"right"}}>

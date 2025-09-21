@@ -8,9 +8,9 @@ import logging
 from deps.google_auth import verify_custom_jwt
 from deps.tuya import switch_device
 from deps.textbee_sms import send_sms
-from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, get_all_container, get_item_by_id, get_latest_from_container
+from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container
 from deps.google_ai import identify_img_transact_ai
-from deps.azure_blob import upload_to_azure,container_name
+from deps.azure_blob import get_file, upload_to_azure,container_name
 from werkzeug.utils import secure_filename
 from uuid_extensions import uuid7, uuid7str
 
@@ -97,7 +97,33 @@ def upload_proof(req: func.HttpRequest) -> func.HttpResponse:
         #     blob_client = blob_service_client.get_blob_client(container=container_name, blob_name=blob_name)
 
 
-@app.route(route="record_payment", auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="files/{id}", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
+def get_img_by_id(req: func.HttpRequest) -> func.HttpResponse:
+    
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    if(user == None):
+        return func.HttpResponse("", status_code=401)
+
+    if(user["role"] != "admin"):
+        return func.HttpResponse("", status_code=403)
+    
+
+    id = req.route_params.get("id")
+    item = get_file_by_id(id)
+    if(item == None):
+        return func.HttpResponse("", status_code=404)
+    
+    src = get_file(item)
+    item["url"] = src
+
+
+    return func.HttpResponse(json.dumps(item), mimetype="application/json", status_code=200)
+
+
+
+
+
+@app.route(route="record_payment", methods=[func.HttpMethod.POST], auth_level=func.AuthLevel.ANONYMOUS)
 def record_payment(req: func.HttpRequest) -> func.HttpResponse:
     
     user = verify_custom_jwt(req.headers.get("Authorization"))
