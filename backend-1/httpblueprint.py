@@ -88,6 +88,7 @@ def google_auth(req: func.HttpRequest) -> func.HttpResponse:
         'iat': now,
         'exp': now + datetime.timedelta(hours=6),
         'iss': 'https://adolfrey.com',
+        "aud": google_claims.get('aud'),
         'sub': google_claims.get('sub'),
         'name': google_claims.get('name'),
         'email': google_claims.get('email'),

@@ -7,9 +7,9 @@ import { redirect } from "@tanstack/react-router";
 
 
 export const getToken = async (force: boolean) => {
-    let token = window.sessionStorage.getItem("access_token");
+    let token = window.localStorage.getItem("access_token");
 
-    if (!token || force) throw redirect({to:"/"});
+    if (!token || force) return redirect({to:"/"});
 
 
     const tokenJson = jwtDecode<JwtPayload>(token!)
