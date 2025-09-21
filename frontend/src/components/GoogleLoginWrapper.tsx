@@ -52,6 +52,7 @@ export const AuthContextProvider = ({children})=>{
         if (moment().add(1, "minute").isAfter(tokenJson.exp! * 1000)){
             console.log("token expired")
             window.localStorage.removeItem("access_token")
+            setInitialized(true)
             return
         }
         setUser({...tokenJson, isAuthenticated: true})
