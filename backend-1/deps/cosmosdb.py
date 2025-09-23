@@ -64,7 +64,6 @@ def get_item_by_id(container, id):
     return item
      
 
-
 def add_to_finance(container, record):
     db = get_db(os.environ["FINANCE_DB"])
     container = db.get_container_client(container)

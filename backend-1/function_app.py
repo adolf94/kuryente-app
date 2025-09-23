@@ -6,7 +6,7 @@ import math
 import azure.functions as func
 import logging
 from deps.google_auth import verify_custom_jwt
-from deps.tuya import switch_device
+from deps.tuya import save_status_checkpoint, switch_device
 from deps.textbee_sms import send_sms
 from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container
 from deps.google_ai import identify_img_transact_ai
@@ -318,13 +318,17 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
         json.dumps(cached_files[body["fileId"]]), mimetype="application/json", status_code=200)
 
 
-@app.timer_trigger(schedule="0 53 18 * * *", arg_name="myTimer", run_on_startup=False,
+@app.timer_trigger(schedule="0 5 6 * * *", arg_name="myTimer", run_on_startup=False,
               use_monitor=False)
 def turn_off_trigger(myTimer: func.TimerRequest) -> None:
+
+    save_status_checkpoint()
+
 
     current_timer = get_latest_from_container("TimerDetails")
     disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ").astimezone(datetime.timezone.utc)
     if(disconnect_time <= datetime.datetime.now(datetime.UTC)):
+        send_sms(os.environ.get("SMS_NUMBER"), "KURYENTEAPP: Switch was turned off due to expiration of timer.")
         switch_device(False)
 
     logging.info('Python timer trigger function executed.')
