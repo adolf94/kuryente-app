@@ -134,31 +134,39 @@ function RouteComponent() {
               </Table>
             </TableContainer>
             <Box  sx={{display:{xs:"block", sm:"none"}}}>
-
-              <Paper variant='outlined' sx={{p:2}}>
-                <Grid container> 
-                  <Grid size={6} sx={{pb:1}}>
-                    <Typography variant='body2'>09-27</Typography>
-                  </Grid>
-                  <Grid size={6} sx={{textAlign:"right",pb:1}}>
-                    <StatusChip value="Pending" size="small" />
-                  </Grid>
-                  <Grid size={6}>
-                    <Typography variant='body2'>
-                    <IconButton size='small'>
-                      <Image fontSize='small' />
-                    </IconButton>GCash</Typography>
-                  </Grid>
-                  <Grid size={6} sx={{textAlign:"right",pb:1}}>
-                    <Typography variant='body2'>P 1,800.00</Typography>
-                  </Grid>
-                  <Grid size={6} sx={{pb:1}}>
-                    <Chip size="small" color='success' label="12D @ P 150"></Chip>
-                  </Grid>
-                  <Grid size={6}>
-                  </Grid>
+              
+            {
+                    data.map((e,i)=><Paper variant='outlined' sx={{p:2}}>
+              <Grid container> 
+                <Grid size={6} sx={{pb:1}}>
+                  <Typography variant='body2'>{moment(e.File.datetime).format("MMM DD")}</Typography>
                 </Grid>
-              </Paper>
+                <Grid size={6} sx={{textAlign:"right",pb:1}}>
+                  <StatusChip value={e.Status} size="small" onChange={(newValue)=>{
+                      decide(i,newValue)
+                    }}></StatusChip>
+                </Grid>
+                <Grid size={6}>
+                  <Typography variant='body2'>
+                        {e.File.fileId && <ViewImageDialog fileId={e.File.fileId} />}
+                        {e.File?.recipientBank}
+                  </Typography>
+                </Grid>
+                <Grid size={6} sx={{textAlign:"right",pb:1}}>
+                  <Typography variant='body2'>
+                  {numeral(e.File.amount).format("0,0.00")}</Typography>
+                </Grid>
+                <Grid size={6} sx={{pb:1}}>
+                  <Chip size="small" color='success' label="12D @ P 150"></Chip>
+                </Grid>
+                <Grid size={6}>
+                </Grid>
+              </Grid>
+            </Paper>
+                    
+                    
+                  )}
+                  
             </Box>
           </CardContent>
         </Card>
