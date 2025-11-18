@@ -6,9 +6,9 @@ import math
 import azure.functions as func
 import logging
 from deps.google_auth import verify_custom_jwt
-from deps.tuya import save_status_checkpoint, switch_device
+from deps.tuya import get_status, save_status_checkpoint, switch_device
 from deps.textbee_sms import send_sms
-from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container
+from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container, get_reading_by_date
 from deps.google_ai import identify_img_transact_ai
 from deps.azure_blob import get_file, upload_to_azure,container_name
 from werkzeug.utils import secure_filename
@@ -123,6 +123,7 @@ def get_img_by_id(req: func.HttpRequest) -> func.HttpResponse:
 
 
 
+
 @app.route(route="record_payment", methods=[func.HttpMethod.POST], auth_level=func.AuthLevel.ANONYMOUS)
 def record_payment(req: func.HttpRequest) -> func.HttpResponse:
     
@@ -227,6 +228,57 @@ def payments(req:func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(json.dumps(items), mimetype="application/json", status_code=200)
 
 
+# @app.route(route="trigger_status_checkpoint", auth_level=func.AuthLevel.ANONYMOUS)
+# def test_sms(req: func.HttpRequest) -> func.HttpResponse:
+#     save_status_checkpoint()
+#     return func.HttpResponse("ok", status_code=200)
+
+@app.route(route="readings",methods=[func.HttpMethod.GET],  auth_level=func.AuthLevel.ANONYMOUS)
+def readings(req: func.HttpRequest) -> func.HttpResponse:
+    
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    if(user == None):
+        return func.HttpResponse("", status_code=401)
+
+    items = get_all_container("Readings")
+    return func.HttpResponse(json.dumps(items),mimetype="application/json",  status_code=200)
+
+
+
+@app.route(route="add_reading", auth_level=func.AuthLevel.ANONYMOUS)
+def add_reading(req: func.HttpRequest) -> func.HttpResponse:
+    
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    body = req.get_json()
+    if(user == None):
+        return func.HttpResponse("", status_code=401)
+    if(user["role"] != "admin"):
+        return func.HttpResponse("", status_code=403)
+    
+    after = get_reading_by_date(body["date"], body["type"], "asc")
+    before = get_reading_by_date(body["date"], body["type"], "desc")
+    if "id" not in body: body["id"] =  uuid7str()
+    body["PartitionKey"] = "default"
+
+    if(body["reading"] is not None):
+        if(body["consumption"] is not None and before is not None):
+            prev = int(before["reading"])
+            body["consumption"] = int(body["reading"]) - prev
+        else:
+            body["consumption"] = int(body["reading"])
+    add_to_app("Readings", body)
+    
+    if(after is not None):
+        #update after
+        if(after["consumption"] is not None):
+            prev = int(body["reading"])
+            after["consumption"] = int(after["reading"]) - prev
+            add_to_app("Readings", after)
+
+    return func.HttpResponse(json.dumps(body),mimetype="application/json",  status_code=201)
+
+
+
 @app.route(route="confirm_payment", auth_level=func.AuthLevel.ANONYMOUS)
 def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
 
@@ -240,16 +292,17 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps({"error": "File information is not found or expired. Please try again."}), mimetype="application/json", status_code=400)
 
     if(ai_data["recipientBank"].lower().find("gcash") == -1):
+        id = uuid7str()
         data = {
             "File": ai_data,
-            "id": uuid7str(),
+            "id": id,
             "DateAdded": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "Status": "Pending",
             "PartitionKey":"default"
         }
          #notif
         add_to_app("PaymentsUploads", data)
-        send_sms(os.environ["SMS_NUMBER"],f"ACTION REQUIRED: New payment ({ai_data["recipientBank"]}) from kuryente-app is in for review!")
+        send_sms(os.environ["SMS_NUMBER"],f"ACTION REQUIRED: New payment ({ai_data["recipientBank"]}) from kuryente-app is in for review!---{id}")
 
     else:
         result = check_notifs_gcash(ai_data)
@@ -257,6 +310,8 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
         count = len(list(result))
         new_data = None
         if(count == 1):
+            id = uuid7str()
+
             data = {
                 "id": uuid7str(),
                 "File": ai_data,
@@ -265,7 +320,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
                 "Status": "Approved",
                 "PartitionKey":"default"
             }
-            send_sms(os.environ["SMS_NUMBER"],f"FYI: New payment ({ai_data["recipientBank"]}) from kuryente-app has been auto approved!")
+            send_sms(os.environ["SMS_NUMBER"],f"FYI: New payment ({ai_data["recipientBank"]}) from kuryente-app has been auto approved!---{id}")
 
 
             last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
@@ -285,9 +340,11 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
             #     last_disconnect_time = datetime.datetime.now(datetime.UTC)
 
         else:
+            id = uuid7str()
+
             data = {
                 "File": ai_data,
-                "id": uuid7str(),
+                "id": id,
                 "Reason": f"Found {count} matching the payment. needs verification",
                 "DateAdded": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "Status": "Pending",
@@ -302,7 +359,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
             add_to_app("TimerDetails",current_timer)
             #notif
             add_to_app("PaymentsUploads", data)
-            send_sms(os.environ["SMS_NUMBER"],f"ACTION REQUIRED: New payment ({ai_data["recipientBank"]}) from kuryente-app is in for review!")
+            send_sms(os.environ["SMS_NUMBER"],f"ACTION REQUIRED: New payment ({ai_data["recipientBank"]}) from kuryente-app is in for review!---{id}")
 
 
 
@@ -316,6 +373,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
 
     return func.HttpResponse(
         json.dumps(cached_files[body["fileId"]]), mimetype="application/json", status_code=200)
+
 
 
 @app.timer_trigger(schedule="0 5 6 * * *", arg_name="myTimer", run_on_startup=False,

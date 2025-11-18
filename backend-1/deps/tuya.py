@@ -54,6 +54,33 @@ def switch_device(shouldOn : bool):
     return
 
 
+def get_status():
+    
+    if(TUYA_ENABLED.lower() == "false"):
+        return
+    access_token = get_token()
+    api_method = "GET"
+    # Example path, replace with a real one
+    api_path = f"/v1.0/iot-03/devices/{TUYA_DEVICE_ID}/status" 
+    api_url = f"{TUYA_ENDPOINT}{api_path}"
+
+
+    api_headers = signer.get_headers_for_api_call(
+        method=api_method, 
+        url=api_url, 
+        access_token=access_token,
+        body=""
+    )
+    response = requests.get(api_url, headers=api_headers)
+
+    response.raise_for_status()
+    data = response.json()
+    data["id"] = uuid7str()
+    data["PartitionKey"] = "default"
+    data["DateLogged"] = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    return data
+
 def save_status_checkpoint():
     if(TUYA_ENABLED.lower() == "false"):
         return

@@ -62,6 +62,19 @@ def get_item_by_id(container, id):
     items = container.query_items("select * from c where c.id=@id", parameters=[{"name":"@id", "value":id}], partition_key="default")
     item = next(items, None)
     return item
+
+def get_reading_by_date(date, bill_type, order):
+    db = get_db()
+    container = db.get_container_client("Readings")
+    query = f"""
+            SELECT TOp 1 * FROM c 
+            where c.date {"<=" if order.lower() == "desc" else ">="} @date
+                and c.type = @type
+            order by c.date { "desc" if order.lower() == "desc" else "asc" }
+        """
+    items = container.query_items(query, parameters=[{"name":"@date", "value":date}, {"name":"@type", "value":bill_type}], partition_key="default")
+    if(items == None): return None
+    return next(items,None)
      
 
 def add_to_finance(container, record):

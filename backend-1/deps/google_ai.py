@@ -46,7 +46,7 @@ def identify_img_transact_ai(localpath, file_record):
         - amount : decimal - the paid/transfered amount
         - transactionFee : decimal - the fee for the transaction (default value:0.00)
         - currency : string - the payment currency (default value: PHP)
-        - isValid: boolean - validate using the parameters under "Validation parameters"
+        - isValid: boolean - validate using the parameters under "isValid parameters"
         - reason: string - provide the reason on the decision above. leave blank if isValid is true otherwise have it at max 100 characters. Do not show the valid account numbers here
         - otherData : json_object - key-value pairs of details that are not yet captured but can be used for referencing the transaction
         ```````

@@ -9,6 +9,7 @@ import moment from 'moment'
 import { useConfirm } from 'material-ui-confirm'
 import AddPaymentDialog from '../../components/index/admin/AddPaymentDialog'
 import ViewImageDialog from '../../components/index/admin/ViewImageDialog'
+import AddReadingDialog from '../../components/index/admin/AddReadingDialog'
 
 export const Route = createFileRoute('/admin/')({
   component: RouteComponent,
@@ -22,11 +23,17 @@ function RouteComponent() {
   const confirm = useConfirm()
 
   const [data,setData] = useState<any[]>([])
+  const [readings,setReadings] = useState<any[]>([])
 
   useEffect(()=>{
     api.get<any>("/payments")
       .then(e=>{
         setData(e.data)
+      })
+
+    api.get("/readings")
+      .then(e=>{
+        setReadings(e.data)
       })
   },[])
 
@@ -120,7 +127,7 @@ function RouteComponent() {
                         {numeral(e.File.amount).format("0,0.00")}
                       </TableCell>
                       <TableCell>
-                        <Chip size="small" color='success' label="12D@P150"/>
+                        <Chip size="small" color='success' label={(e.File?.days || 0) + "@150"}/>
                       </TableCell>
                       <TableCell>
                       <StatusChip value={e.Status} size="small" onChange={(newValue)=>{
@@ -180,18 +187,45 @@ function RouteComponent() {
             </Typography>
           </CardHeader>
           <CardContent>
+            
+          <AddReadingDialog onAdded={(item)=>setReadings([...readings, item])}  data={readings}/>
             <TableContainer>
               <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell>
-                      Test1
+                      Date
                     </TableCell>
                     <TableCell>
-                      Test2
+                      Utility
+                    </TableCell>
+                    <TableCell>
+                      Reading
+                    </TableCell>
+                    <TableCell>
+                      Consumption
                     </TableCell>
                   </TableRow>
                 </TableHead>
+                <TableBody>
+                  {readings.map(e=><TableRow>
+                    <TableCell>
+                      {moment(e.date).format("YYYY-MM-DD")}
+                    </TableCell>
+                    <TableCell>
+                      {e.type}
+                    </TableCell>
+                    <TableCell>
+                      {e.reading}
+                    </TableCell>
+                    <TableCell>
+                      {e.consumption}
+                    </TableCell>
+                    <TableCell>
+                      {e.consumption * e.per_unit} ({e.per_unit}/unit)
+                    </TableCell>
+                  </TableRow>)}
+                </TableBody>
               </Table>
             </TableContainer>
           </CardContent>
