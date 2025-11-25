@@ -27,7 +27,7 @@ const processQueue = (error, token = null) => {
 const getTokenViaRefreshToken = ()=>{
   let token = window.localStorage.getItem("refresh_token");
   if(!token) return ""
-  return axios.post(`${window.webConfig.api}/auth/refresh`,{
+  return axios.post(`${window.webConfig.auth}/auth/refresh`,{
     refresh_token: token,
     app: 'finance'
   })

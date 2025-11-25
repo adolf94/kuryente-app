@@ -96,7 +96,7 @@ const RouteComponent = ()=>{
             <Grid  size={{xs:12,md:6}} sx={{p:1}}>
                 <Box sx={{width:"100%"}}>
                             <Typography variant='h5'>Payments</Typography>
-                    {payments.slice(0,10).map(e=><Card sx={{my:1}}>
+                    {payments.sort((a,b)=>a.DateAdded > b.DateAdded ? -1:1).slice(0,10).map(e=><Card sx={{my:1}}>
                             <CardContent>
                                 <Grid container> 
                                     <Grid size={6} sx={{pb:1}}>

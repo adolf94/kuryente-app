@@ -104,7 +104,7 @@ def get_img_by_id(req: func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse("", status_code=401)
 
-    if(user["role"] != "admin"):
+    if("KURYENTE_ADMIN" in user["role"] ):
         return func.HttpResponse("", status_code=403)
     
 
@@ -131,7 +131,7 @@ def record_payment(req: func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse("", status_code=401)
 
-    if(user["role"] != "admin"):
+    if("KURYENTE_ADMIN" in user["role"] ):
         return func.HttpResponse("", status_code=403)
     
     body = req.get_json()
@@ -173,7 +173,7 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse("", status_code=401)
 
-    if(user["role"] != "admin"):
+    if("KURYENTE_ADMIN" in user["role"] ):
         return func.HttpResponse("", status_code=403)
 
     body = req.get_json()
@@ -271,7 +271,7 @@ def add_reading(req: func.HttpRequest) -> func.HttpResponse:
     body = req.get_json()
     if(user == None):
         return func.HttpResponse("", status_code=401)
-    if(user["role"] != "admin"):
+    if("KURYENTE_ADMIN" in user["role"] ):
         return func.HttpResponse("", status_code=403)
     
     after = get_reading_by_date(body["date"], body["type"], "asc")
@@ -327,7 +327,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
     else:
         result = check_notifs_gcash(ai_data)
         current_timer = get_latest_from_container("TimerDetails")
-        
+
         count = len(list(result))
         new_data = None
         if(count == 1):

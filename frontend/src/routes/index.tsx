@@ -71,7 +71,7 @@ const Index = ()=>{
 
     
     const onGoogleSuccess = (data: CredentialResponse)=>{
-        api.post("/auth/google_credential", data, { preventAuth: true })
+            api.post(`${window.webConfig.auth}/auth/google_credential`, data, { preventAuth: true })
             .then(e=>{
                 window.localStorage.setItem("refresh_token", e.data.refresh_token);
                 window.sessionStorage.setItem("access_token", e.data.access_token);
