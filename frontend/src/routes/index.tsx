@@ -4,10 +4,11 @@ import Timer from '../components/index/Timer'
 import {CloudUpload} from "@mui/icons-material"
 import moment from 'moment'
 import { useEffect, useState } from 'react'
-import { anonApi } from '../utils/api'
+import api from '../utils/api'
 import ImageModal from '../components/index/ImageModal'
-import { useGoogleLogin } from '@react-oauth/google'
+import { GoogleLogin, useGoogleLogin, type CredentialResponse } from '@react-oauth/google'
 import useLogin from '../components/GoogleLoginWrapper'
+import { anonApi } from '../utils/apiOld'
 
 export const Route = createFileRoute('/')({
   component: Index,
@@ -68,6 +69,40 @@ const Index = ()=>{
         flow: 'auth-code',
     });
 
+    
+    const onGoogleSuccess = (data: CredentialResponse)=>{
+        api.post("/auth/google_credential", data, { preventAuth: true })
+            .then(e=>{
+                window.localStorage.setItem("refresh_token", e.data.refresh_token);
+                window.sessionStorage.setItem("access_token", e.data.access_token);
+                navigate({to:"/user"})
+                setUser({isAuthenticated:true, ...e.data.user_info})
+                setLoading(false);
+
+                return e.data;
+            }).catch(err => {
+                if (!err.response?.status) {
+                    console.log(err)
+                    return navigate({to:"/errors/down"})
+                }
+                if (err.response.status === 401 && !!err.response.headers["X-GLogin-Error"]) {
+                    console.debug("INVALID CODE")
+                    setLoading(false)
+                }
+                if (err.response.status === 403) {
+                    navigate({to:"/errors/denied"})
+                }
+            })
+            // .then(res=>{
+            //     window.localStorage.setItem("id_token", res.id_token);
+                
+                
+            //     // handleToken(res.id_token)
+            //     setLoading(false);
+            // });
+
+    }
+
 
 
     return (
@@ -112,9 +147,12 @@ const Index = ()=>{
                     {user.isAuthenticated ?
                     <Box display="block" sx={{pt:1, textAlign:"center"}}>
                         <Button variant='contained' size="large" loading={loading} onClick={()=>navigate({to:"/user"})}>Go to Dashboard</Button>
-                    </Box>: <Box display="block" sx={{pt:1, textAlign:"center"}}>
-                        <Button variant='contained' size="large" loading={loading} onClick={loginGoogle}>Login with Google</Button>
-                    </Box>}
+                    </Box>: <Grid container sx={{pt:1, textAlign:"center", justifyContent:"center"}}>
+                        <Grid>
+                            <GoogleLogin onSuccess={onGoogleSuccess} />
+                        </Grid>
+                        {/* <Button variant='contained' size="large" loading={loading} onClick={loginGoogle}>Login with Google</Button> */}
+                    </Grid>}
                 </CardContent>
             </Card>
             </Box>

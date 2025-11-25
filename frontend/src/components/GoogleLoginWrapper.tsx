@@ -1,6 +1,5 @@
 import { useGoogleLogin } from "@react-oauth/google";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { anonApi } from "../utils/api";
 import { useNavigate } from "@tanstack/react-router";
 import { Token } from "@mui/icons-material";
 import { jwtDecode, type JwtPayload } from "jwt-decode";

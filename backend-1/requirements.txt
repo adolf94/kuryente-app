@@ -11,5 +11,6 @@ requests
 azure.storage.blob 
 azure.identity
 google-genai
+python-dateutil
 Pillow
 pytz

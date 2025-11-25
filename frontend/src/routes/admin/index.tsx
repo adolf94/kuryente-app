@@ -10,6 +10,8 @@ import { useConfirm } from 'material-ui-confirm'
 import AddPaymentDialog from '../../components/index/admin/AddPaymentDialog'
 import ViewImageDialog from '../../components/index/admin/ViewImageDialog'
 import AddReadingDialog from '../../components/index/admin/AddReadingDialog'
+import { useQuery } from '@tanstack/react-query'
+import { getAllReadings, getPayments, PAYMENT, READING, usePaymentMutation } from '../../repositories/repository'
 
 export const Route = createFileRoute('/admin/')({
   component: RouteComponent,
@@ -22,34 +24,32 @@ export const Route = createFileRoute('/admin/')({
 function RouteComponent() {
   const confirm = useConfirm()
 
-  const [data,setData] = useState<any[]>([])
-  const [readings,setReadings] = useState<any[]>([])
+  const {data : readings} = useQuery({
+    queryFn:()=>getAllReadings(),
+    queryKey:[READING],
+    initialData:[],
+    placeholderData:[]
+  })
+  
+  const {data: data, } = useQuery<any[]>({
+      queryKey: [PAYMENT],
+      queryFn: ()=>getPayments(),
+      initialData: [],
+      placeholderData:[]
+  })
+  const {decide_admin} = usePaymentMutation()
 
-  useEffect(()=>{
-    api.get<any>("/payments")
-      .then(e=>{
-        setData(e.data)
-      })
-
-    api.get("/readings")
-      .then(e=>{
-        setReadings(e.data)
-      })
-  },[])
 
 
-  const decide = (index : Number, decision : any)=>{
+  const decide = (index : int, decision : any)=>{
 
     confirm({
       title: "Confirm",
       description: `Are you sure with ${decision["label"]}?`
-    }).then((val)=>{
+    }).then(async (val)=>{
       if(!val) return
       if(val.confirmed)
-        return api.post("/decide_payment", {
-          id: data[index].id,
-          newStatus: decision["label"]
-        }).then((res)=>{
+          await decide_admin.mutateAsync(data[index], decision.label)
           if(decision.label == "Approved"){
             confirm({
               title: "Approved",
@@ -64,12 +64,6 @@ function RouteComponent() {
             })
           }
           
-          setData(prev=>{
-            let newState = [...prev]
-            newState[index] = res?.data.payment
-            return newState
-          })
-        })
     })
 
   }
@@ -87,7 +81,7 @@ function RouteComponent() {
                 </Typography>
               </Box>
               <Box>
-                <AddPaymentDialog onCreate={(data)=>setData(prev=>[data.payment,...prev])}/>
+                <AddPaymentDialog onCreate={()=>{}}/>
               </Box>
             </Box>
           </CardContent>
@@ -130,7 +124,7 @@ function RouteComponent() {
                         <Chip size="small" color='success' label={(e.File?.days || 0) + "@150"}/>
                       </TableCell>
                       <TableCell>
-                      <StatusChip value={e.Status} size="small" onChange={(newValue)=>{
+                      <StatusChip value={e.Status} size="small" select onChange={(newValue)=>{
                           decide(i,newValue)
                         }}></StatusChip>
                       </TableCell>
@@ -188,7 +182,10 @@ function RouteComponent() {
           </CardHeader>
           <CardContent>
             
-          <AddReadingDialog onAdded={(item)=>setReadings([...readings, item])}  data={readings}/>
+          <AddReadingDialog onAdded={()=>{}}  data={readings} allowedTypes={["Manila Water", "Meralco"]} admin>
+              <Button>Add Reading</Button>
+
+            </AddReadingDialog>
             <TableContainer>
               <Table>
                 <TableHead>

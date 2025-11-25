@@ -28,8 +28,8 @@ const ViewImageDialog = ({fileId})=>{
 
 
     return <>
-        <IconButton onClick={onIconClick}>
-            <Image  fontSize='small' />
+        <IconButton onClick={onIconClick} sx={{padding:"4px"}}>
+            <Image  fontSize="small" />
         </IconButton>
         <Dialog open={show} onClose={()=>{
             setShow(false)

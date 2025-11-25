@@ -10,6 +10,7 @@ import os
 import azure.functions as func
 import logging
 import jwt
+import requests
 import datetime
 
 from deps.cosmosdb import get_latest_from_container
@@ -26,6 +27,18 @@ def get_timer_info(req: func.HttpRequest) -> func.HttpResponse:
     item = get_latest_from_container("TimerDetails")
     body = json.dumps(item)
     return func.HttpResponse(body, status_code=200, mimetype="application/json")
+
+
+@bp.route(route="auth/google_credential", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def google_creds_proxy(req:func.HttpRequest) -> func.HttpResponse:
+    if "AUTH_API" not in os.environ:
+        return func.HttpResponse("",status_code=400, mimetype="application/json")
+    auth_api = f"{os.environ["AUTH_API"]}/auth/google_credential"
+    body = req.get_json()
+    response = requests.post(auth_api, headers={"Content-Type": "application/json"} ,json=body)
+    
+    return func.HttpResponse(response.text, status_code=response.status_code, mimetype="application/json")
+
 
 
 

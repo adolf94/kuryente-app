@@ -3,20 +3,31 @@ import NumberInput from "./NumberInput"
 import { useMemo, useState } from "react"
 import { useConfirm } from "material-ui-confirm"
 import moment from "moment"
+import numeral from "numeral"
 import api from "../../../utils/api"
 import { useLoader } from "../../Loader"
+import { usePaymentMutation } from "../../../repositories/repository"
+
+
+interface AddPaymentDialogProps {
+    onCreate : (output:any)=>any,
+    item? : any
+
+}
 
 
 const AddPaymentDialog = (props: any)=>{
     const [show, setShow] = useState(false)
     const [form,setForm] = useState({
         amount: 0,
+        rate: 150,
         description: "",
         recipientBank:"Cash",
         datetime: moment().format("YYYY-MM-DDTHH:mm:ss"),
         days:0
     })
     const confirm = useConfirm()
+    const {add_admin} = usePaymentMutation()
 
     const {showLoading,hideLoading} = useLoader()
     
@@ -24,35 +35,48 @@ const AddPaymentDialog = (props: any)=>{
         let days = Math.floor(evt / 150)
         setForm({...form, amount: evt, days: days})
     }
+    const onFormChange = (field : string, value : number)=>{
+        if(field == "amount"){
+            setForm({...form, amount:value, days: Math.floor(value / form.rate)})
+            return
+        }
+        setForm({
+            ...form,
+            days: field == "days" ? value : Math.floor( form.amount / form.rate),
+            rate: field == "rate" ? value : form.amount / value
+        })
+    }
 
     const onSubmit = ()=>{
-        confirm({
-            title: "Confirm",
-            description: `Are you sure to record ${form.amount}?`
-          }).then((val)=>{
-                if(!val) return
-            if(val.confirmed)
-                showLoading()
-              return api.post("/record_payment", form)
-                .then((res)=>{
-
-                    confirm({
-                        title: "Approved",
-                        description: `Elec/Water has been extended till ${moment(res?.data.timer.DisconnectTime).format("MMM DD")}`,
-                        hideCancelButton:true
-                    })
-                    props.onCreate(res.data)
-                    setShow(false)
-                    hideLoading()
-                    setForm({
-                        amount: 0,
-                        description: "",
-                        recipientBank:"Cash",
-                        datetime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-                        days:0
-                    })
+        if(!props.item?.id){
+            confirm({
+                title: "Confirm",
+                description: `Are you sure to record ${numeral(form.amount).format("0,0.0")}?`
+              }).then(async (val)=>{
+                    if(!val) return
+                if(val.confirmed)
+                    showLoading()
+                    let output  = await add_admin.mutateAsync(form)
+                        confirm({
+                            title: "Approved",
+                            description: `Elec/Water has been extended till ${moment(res?.data.timer.DisconnectTime).format("MMM DD")}`,
+                            hideCancelButton:true
+                        })
+                        props.onCreate(output)
+                        setShow(false)
+                        hideLoading()
+                        setForm({
+                            amount: 0,
+                            description: "",
+                            recipientBank:"Cash",
+                            datetime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+                            rate:0,
+                            days:0
+                        })
                 })
-            })
+        }else{
+
+        }
     }
 
     const submitable = useMemo(()=>{
@@ -65,8 +89,8 @@ const AddPaymentDialog = (props: any)=>{
         setShow(true)
     }}>Add Payment</Button>
     
-    <Dialog open={show} onClose={()=>{
-        setShow(false)
+    <Dialog open={show} maxWidth="xs" onClose={()=>{
+        setShow(false) 
     }}>
         <DialogTitle>Add Payment</DialogTitle>
         <DialogContent>
@@ -87,14 +111,16 @@ const AddPaymentDialog = (props: any)=>{
                     </TextField>
                 </Grid>
                 <Grid  size={12}>
-                    <NumberInput label="amount" variant="outlined" value={form.amount} onChange={onAmountChange}/>
+                    <NumberInput label="amount" variant="outlined" value={form.amount} onChange={(evt)=>onFormChange("amount", Number.parseFloat(evt.target.value) )}/>
+                </Grid>
+                <Grid  size={12}>
+                    <NumberInput label="rate" variant="outlined" value={form.rate} onChange={(evt)=>onFormChange("rate", Number.parseFloat(evt.target.value) )}/>
                 </Grid>
                 <Grid  size={12}>
                     <NumberInput label="days"  variant="outlined" value={form.days} slotProps={{ input : {
                         endAdornment: <InputAdornment position="end">days</InputAdornment>
-                    }}} onChange={(evt)=>{
-                        setForm({...form, days: evt})
-                    }}
+                    }}} 
+                        onChange={(evt)=>onFormChange("days", Number.parseFloat(evt.target.value) )}
                     inputProps={{ min: 0, style: { textAlign: "right" } }}/>
                 </Grid>
             </Grid>

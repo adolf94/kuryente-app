@@ -8,7 +8,7 @@ import logging
 from deps.google_auth import verify_custom_jwt
 from deps.tuya import get_status, save_status_checkpoint, switch_device
 from deps.textbee_sms import send_sms
-from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container, get_reading_by_date
+from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, create_monthly_bill, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container, get_reading_by_date
 from deps.google_ai import identify_img_transact_ai
 from deps.azure_blob import get_file, upload_to_azure,container_name
 from werkzeug.utils import secure_filename
@@ -198,6 +198,7 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
             "Rate": current_timer["Rate"]
         }
         switch_device(True)
+        item["Days"] = days_to_add
         add_to_app("TimerDetails",new_data)
 
     else:
@@ -228,6 +229,19 @@ def payments(req:func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(json.dumps(items), mimetype="application/json", status_code=200)
 
 
+@app.route(route="bills", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
+def bills(req:func.HttpRequest) -> func.HttpResponse:
+
+    #validations
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    if(user == None):
+        return func.HttpResponse("", status_code=401)
+    
+    
+    items = get_all_container("Bills")
+    return func.HttpResponse(json.dumps(items), mimetype="application/json", status_code=200)
+
+
 # @app.route(route="trigger_status_checkpoint", auth_level=func.AuthLevel.ANONYMOUS)
 # def test_sms(req: func.HttpRequest) -> func.HttpResponse:
 #     save_status_checkpoint()
@@ -243,6 +257,11 @@ def readings(req: func.HttpRequest) -> func.HttpResponse:
     items = get_all_container("Readings")
     return func.HttpResponse(json.dumps(items),mimetype="application/json",  status_code=200)
 
+@app.route(route="create_bill", methods=["GET"],auth_level=func.AuthLevel.ANONYMOUS)
+def create_bill(req:func.HttpRequest) -> func.HttpResponse:
+    date = req.params.get('date')
+    bill = create_monthly_bill(date)
+    return func.HttpResponse(json.dumps(bill),mimetype="application/json",  status_code=200)
 
 
 @app.route(route="add_reading", auth_level=func.AuthLevel.ANONYMOUS)
@@ -260,7 +279,7 @@ def add_reading(req: func.HttpRequest) -> func.HttpResponse:
     if "id" not in body: body["id"] =  uuid7str()
     body["PartitionKey"] = "default"
 
-    if(body["reading"] is not None):
+    if(body["reading"] is not None and body["reading"] > 0):
         if(body["consumption"] is not None and before is not None):
             prev = int(before["reading"])
             body["consumption"] = int(body["reading"]) - prev
@@ -295,6 +314,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
         id = uuid7str()
         data = {
             "File": ai_data,
+            "Days":ai_data["days"],
             "id": id,
             "DateAdded": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "Status": "Pending",
@@ -307,6 +327,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
     else:
         result = check_notifs_gcash(ai_data)
         current_timer = get_latest_from_container("TimerDetails")
+        
         count = len(list(result))
         new_data = None
         if(count == 1):
@@ -317,6 +338,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
                 "File": ai_data,
                 "DateAdded": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "notif": next(result),
+                "Days":ai_data["days"],
                 "Status": "Approved",
                 "PartitionKey":"default"
             }
@@ -345,7 +367,9 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
             data = {
                 "File": ai_data,
                 "id": id,
+                
                 "Reason": f"Found {count} matching the payment. needs verification",
+                "Days":ai_data["days"],
                 "DateAdded": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "Status": "Pending",
                 "PartitionKey":"default"

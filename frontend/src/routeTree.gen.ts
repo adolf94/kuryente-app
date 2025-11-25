@@ -14,6 +14,8 @@ import { Route as UserIndexRouteImport } from './routes/user/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ErrorsDownRouteImport } from './routes/errors/down'
 import { Route as ErrorsDeniedRouteImport } from './routes/errors/denied'
+import { Route as UserBillsIndexRouteImport } from './routes/user/bills/index'
+import { Route as UserBillsBillIdRouteImport } from './routes/user/bills/$billId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +42,16 @@ const ErrorsDeniedRoute = ErrorsDeniedRouteImport.update({
   path: '/errors/denied',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UserBillsIndexRoute = UserBillsIndexRouteImport.update({
+  id: '/user/bills/',
+  path: '/user/bills/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UserBillsBillIdRoute = UserBillsBillIdRouteImport.update({
+  id: '/user/bills/$billId',
+  path: '/user/bills/$billId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +59,8 @@ export interface FileRoutesByFullPath {
   '/errors/down': typeof ErrorsDownRoute
   '/admin': typeof AdminIndexRoute
   '/user': typeof UserIndexRoute
+  '/user/bills/$billId': typeof UserBillsBillIdRoute
+  '/user/bills': typeof UserBillsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +68,8 @@ export interface FileRoutesByTo {
   '/errors/down': typeof ErrorsDownRoute
   '/admin': typeof AdminIndexRoute
   '/user': typeof UserIndexRoute
+  '/user/bills/$billId': typeof UserBillsBillIdRoute
+  '/user/bills': typeof UserBillsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,12 +78,28 @@ export interface FileRoutesById {
   '/errors/down': typeof ErrorsDownRoute
   '/admin/': typeof AdminIndexRoute
   '/user/': typeof UserIndexRoute
+  '/user/bills/$billId': typeof UserBillsBillIdRoute
+  '/user/bills/': typeof UserBillsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/errors/denied' | '/errors/down' | '/admin' | '/user'
+  fullPaths:
+    | '/'
+    | '/errors/denied'
+    | '/errors/down'
+    | '/admin'
+    | '/user'
+    | '/user/bills/$billId'
+    | '/user/bills'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/errors/denied' | '/errors/down' | '/admin' | '/user'
+  to:
+    | '/'
+    | '/errors/denied'
+    | '/errors/down'
+    | '/admin'
+    | '/user'
+    | '/user/bills/$billId'
+    | '/user/bills'
   id:
     | '__root__'
     | '/'
@@ -75,6 +107,8 @@ export interface FileRouteTypes {
     | '/errors/down'
     | '/admin/'
     | '/user/'
+    | '/user/bills/$billId'
+    | '/user/bills/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -83,6 +117,8 @@ export interface RootRouteChildren {
   ErrorsDownRoute: typeof ErrorsDownRoute
   AdminIndexRoute: typeof AdminIndexRoute
   UserIndexRoute: typeof UserIndexRoute
+  UserBillsBillIdRoute: typeof UserBillsBillIdRoute
+  UserBillsIndexRoute: typeof UserBillsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -122,6 +158,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErrorsDeniedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/user/bills/': {
+      id: '/user/bills/'
+      path: '/user/bills'
+      fullPath: '/user/bills'
+      preLoaderRoute: typeof UserBillsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/user/bills/$billId': {
+      id: '/user/bills/$billId'
+      path: '/user/bills/$billId'
+      fullPath: '/user/bills/$billId'
+      preLoaderRoute: typeof UserBillsBillIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -131,6 +181,8 @@ const rootRouteChildren: RootRouteChildren = {
   ErrorsDownRoute: ErrorsDownRoute,
   AdminIndexRoute: AdminIndexRoute,
   UserIndexRoute: UserIndexRoute,
+  UserBillsBillIdRoute: UserBillsBillIdRoute,
+  UserBillsIndexRoute: UserBillsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
