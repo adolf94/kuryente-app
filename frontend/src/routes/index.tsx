@@ -76,7 +76,8 @@ const Index = ()=>{
                 window.localStorage.setItem("refresh_token", e.data.refresh_token);
                 window.sessionStorage.setItem("access_token", e.data.access_token);
                 navigate({to:"/user"})
-                setUser({isAuthenticated:true, ...e.data.user_info})
+                let userinfo = JSON.parse(window.atob(e.data.access_token!.split(".")[1]));
+                setUser({isAuthenticated:true, ...userinfo})
                 setLoading(false);
 
                 return e.data;

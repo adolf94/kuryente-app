@@ -16,7 +16,7 @@ import { getAllReadings, getPayments, PAYMENT, READING, usePaymentMutation } fro
 export const Route = createFileRoute('/admin/')({
   component: RouteComponent,
   beforeLoad:(ctx)=>{
-    if(!ctx.context?.user?.isAuthenticated || ctx.context?.user?.role != "admin")
+    if(!ctx.context?.user?.isAuthenticated || ctx.context?.user?.role.indexOf("KURYENTE_ADMIN") == -1)
       throw redirect({to:"/"})
   }
 })

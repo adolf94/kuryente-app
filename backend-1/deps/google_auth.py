@@ -93,7 +93,7 @@ def verify_custom_jwt(auth_header: str | None) -> dict | None:
     
     secret = os.environ.get("JWT_SECRET")
     audience = os.environ.get("GOOGLE_CLIENT_ID")
-    issuer = "https://adolfrey.com"
+    issuer = os.environ.get( "JWT_ISSUER")
 
     if not secret or not audience:
         logging.error("JWT validation credentials (secret, audience) are not configured.")
@@ -108,6 +108,7 @@ def verify_custom_jwt(auth_header: str | None) -> dict | None:
             audience=audience,
             issuer=issuer,
         )
+
         return decoded_token
     except jwt.PyJWTError as e:
         logging.error(f"Error verifying custom JWT: {e}")

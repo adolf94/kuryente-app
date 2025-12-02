@@ -270,9 +270,9 @@ def add_reading(req: func.HttpRequest) -> func.HttpResponse:
     user = verify_custom_jwt(req.headers.get("Authorization"))
     body = req.get_json()
     if(user == None):
-        return func.HttpResponse("", status_code=401)
-    if("KURYENTE_ADMIN" in user["role"] ):
-        return func.HttpResponse("", status_code=403)
+        return func.HttpResponse(status_code=401)
+    if("KURYENTE_ADMIN" not in user["role"] ):
+        return func.HttpResponse(status_code=403, mimetype="application/json")
     
     after = get_reading_by_date(body["date"], body["type"], "asc")
     before = get_reading_by_date(body["date"], body["type"], "desc")
