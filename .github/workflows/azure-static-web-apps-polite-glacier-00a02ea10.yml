@@ -23,7 +23,7 @@ jobs:
         uses: restackio/update-json-file-action@2.1
         with:
           file: frontend/public/config.json
-          fields: '{"api":"${{ vars.API }}", "redirectUri":"${{ vars.REDIRECT_URI }}"}'
+          fields: '{"api":"${{ vars.API }}", "redirectUri":"${{ vars.REDIRECT_URI }}", "auth":"${{ vars.AUTH_API }}"}'
           
       - name: Move/Rename config.json to js
         run: |
@@ -64,4 +64,5 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           action: "close"
+
 
