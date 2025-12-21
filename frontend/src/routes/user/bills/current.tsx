@@ -1,72 +1,33 @@
-import { Box, Button, Card, CardActions, CardContent, CardHeader, Grid, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardActions, CardContent, CardHeader, Grid, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import useBillComputation from '../../../utils/useBillComputation'
 import moment from 'moment'
 import numeral from 'numeral'
 import { useMemo } from 'react'
 import { ChevronLeft, ExpandMore } from '@mui/icons-material'
+import { useAllPayments } from '../../../repositories/repository'
 
-export const Route = createFileRoute('/user/bills/$billId')({
+export const Route = createFileRoute('/user/bills/current')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
-    const { billId } = Route.useParams()
     const router = useRouter()
-    const {result:bill,isLoading } = useBillComputation(moment(billId))
+    const {result:bill,isLoading } = useBillComputation(moment().set("D",1))
+    const {data: payments} = useAllPayments()
+    const currentPayments =  useMemo<any>(()=>(payments || []).filter(e=>{
+           return e.DateAdded > bill?.dateEnd
+        }),[payments])
 
 
-    const readings = useMemo(()=>{
-      if(!bill?.readings) return []
-      let reads = bill.readings.reduce((p,c)=>{
-        if(!p[c.type]) {
-          p[c.type] = []
-        }
-        p[c.type].push(c)
-        return p
-      }, {})
-      return Object.keys(reads)
-        .map(key=>{
-          let data = reads[key]
-          return data.reduce((p,c)=>{
-            if(!p) return {
-              ...c,
-              prorated:!c.prorated ? undefined : {
-                ...c.prorated,
-                prevReading: c.prorated.reading - c.prorated.consumption,
-                amount: (c.prorated.consumption * c.per_unit)
-              }
-            }
-            let cp = c.prorated
-            return {
-              ...c,
-              prorated : !p.prorated ? undefined : {
-                ...cp,
-                consumption: p.prorated.consumption + cp.consumption,
-                dateStart : p.prorated.dateStart < cp.dateStart ? p.prorated.dateStart : cp.dateStart,
-                dateEnd : p.prorated.dateEnd > cp.dateEnd ? p.prorated.dateEnd : cp.dateEnd,
-                daysCount: p.prorated.dayCount + cp.dayCount,
-                isEstimated : p.isEstimated || cp.isEstimated,
-                reading : Math.max(p.reading,cp.reading),
-                prevReading: Math.min((p.reading - p.consumption),(cp.reading - cp.consumption)),
-                amount: (p.prorated.consumption * p.per_unit) + (cp.consumption * c.per_unit)
-              },
-              
-            }
-          },null)
-        }).map(p=>{
-          let pr = p.prorated
-          return {
-            ...p,
-            prorated: !pr ? undefined : {
-              ...pr,
-              per_unit : pr.amount / pr.consumption
-            }
-          }
-        })
+    const paymentAfter = useMemo(()=>{
+        return currentPayments.reduce((prev,cur)=>{
+            return prev + cur.File.amount
+        },0)
+    },[currentPayments,bill])
 
-    },[bill])
-    console.log(readings)
+
+    const readings = []
     if(isLoading) return <></>
     return <>
       <Grid container >
@@ -83,30 +44,39 @@ function RouteComponent() {
                     <TableRow>
                       <TableCell sx={{border:"none"}}>
                         <Typography variant='subtitle1'>Previous Unpaid Balance</Typography>
-                        <Typography variant='body2' color="textDisabled">as of {moment(bill?.dateStart).format("MMM DD")}</Typography>
+                        <Typography variant='body2' color="textDisabled">as of {moment().set("D",1).format("MMM DD")}</Typography>
                       </TableCell>
                       <TableCell sx={{textAlign:"right", border:"none"}}>
-                        <Typography variant='subtitle1'> {numeral(bill?.previous).format("0,0.00")}</Typography>
+                        <Typography variant='subtitle1'> {numeral(bill?.balance).format("0,0.00")}</Typography>
                       </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell>
                         <Typography variant='subtitle1'>Payments</Typography>
-                        <Typography variant='body2' color="textDisabled">{moment(bill?.dateStart).format("MM/DD")} - {moment(bill?.dateEnd).format("MM/DD")}</Typography>
+                        <Typography variant='body2' color="textDisabled">{moment().set("D",1).format("MM/DD")} - {moment().format("MM/DD")}</Typography>
                       </TableCell>
                       <TableCell sx={{textAlign:"right"}}>
-                        <Typography variant='subtitle1'> - {numeral(bill?.totalPayment).format("0,0.00")}</Typography>
+                        <Typography variant='subtitle1'> - {numeral(paymentAfter).format("0,0.00")}</Typography>
                       </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell sx={{border:"none"}}>
-                        <Typography variant='subtitle1'></Typography>
+                        <Typography variant='subtitle1' fontWeight="bold">Outstanding Balance</Typography>
                       </TableCell>
                       <TableCell sx={{textAlign:"right", border:"none"}}>
-                        <Typography variant='subtitle1'>{numeral(bill?.previous - bill?.totalPayment).format("0,0.00")}</Typography>
+                        <Typography variant='subtitle1' fontWeight="bold">{numeral(bill?.balance - paymentAfter).format("0,0.00")}</Typography>
                       </TableCell>
                     </TableRow>
                     <TableRow>
+                      <TableCell  sx={{borderTop:"2px"}}>
+                        <Typography variant='subtitle1'>Utility Usage</Typography>
+                        <Typography variant='body2' color="textDisabled">No bill generated yet</Typography>
+                      </TableCell>
+                      <TableCell sx={{textAlign:"right", borderTop:"2px"}}>
+                        <Typography variant='subtitle1'>+ {numeral(0).format("0,0.00")}</Typography>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow sx={{display:"none"}}>
                       <TableCell  sx={{borderTop:"2px"}}>
                         <Typography variant='subtitle1'>Utility Usage</Typography>
                         <Typography variant='body2' color="textDisabled">{moment(bill?.dateStart).format("MM/DD")} - {moment(bill?.dateEnd).format("MM/DD")}</Typography>
@@ -115,7 +85,7 @@ function RouteComponent() {
                         <Typography variant='subtitle1'>+ {numeral(bill?.current).format("0,0.00")}</Typography>
                       </TableCell>
                     </TableRow>
-                    <TableRow sx={{}}>
+                    <TableRow sx={{display:"none"}}>
                       <TableCell  sx={{borderTop:"2px"}}>
                         <Typography variant='subtitle1' fontWeight="bold">Outstanding Balance</Typography>
                         <Typography variant='body2' color="textDisabled">as of {moment(bill?.dateEnd).add(1,"day").format("MMM DD")}</Typography>
@@ -132,53 +102,9 @@ function RouteComponent() {
           <Grid container size={{xs:12,sm:6,md:4}} >
         <Grid size={12} sx={{px:1,pt:1}}>
           <Typography variant='h5'>Readings</Typography>
-        </Grid>
-        
-        {readings.sort((a,b)=>{
-          if(a.type > b.type) return 1
-          if(a.type < b.type) return -1
-          if(a.reading?.dateStart < b.reading?.dateStart) return 1
-          if(a.reading?.dateStart == b.reading?.dateStart) return 0
-          return -1
-        }).map(reading=><Grid size={12} sx={{p:1}} key={reading.id}>
-              <Card>
-                <CardContent>
-                  <Grid container>
-                    <Grid size={12}>
-                      <Typography variant='body1'>{reading.type}</Typography>
-                    </Grid>
-                    <Grid size={6}>
-                      <Typography variant='caption'>Reading Period</Typography>
-                      <Typography variant='body2'>{moment(reading?.prorated?.dateStart || reading?.dateStart ).format("MM/DD")} - {moment(reading?.prorated?.dateEnd || reading?.dateEnd).format("MM/DD")}</Typography>
-                    </Grid>
-                    <Grid size={6}>
-                      <Typography variant='caption'>Meter Reading</Typography>
-                      <Typography variant='body2'>{reading?.prorated?.reading || reading?.reading || "N/A"}</Typography>
-                    </Grid>
-                    <Grid size={6}>
-                      <Typography variant='caption'>Consumption</Typography>
-                      <Typography variant='body2'>{numeral(reading.prorated?.consumption || reading.consumption).format("0,0.00")}</Typography>
-                    </Grid>
-                    <Grid size={6}>
-                      <Typography variant='caption'>Price Per unit</Typography>
-                      <Typography variant='body2'>{numeral(reading?.prorated?.per_unit || reading.per_unit).format("0,0.00")}</Typography>
-                    </Grid>
-                    <Grid size={6}>
-                    </Grid>
-                    <Grid size={6}>
-                      <Typography variant='caption'>Total Cost</Typography>
-                      <Typography variant='body2'>{numeral((reading.prorated?.amount) || (reading.per_unit * reading.consumption)).format("0,0.00")}</Typography>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-                <CardActions>
-                  <Tooltip title="Coming soon!">
-                    <Button size="small"> <ExpandMore /> More Info</Button>
-                  </Tooltip>
-                </CardActions>
-              </Card>
-            </Grid>)}
+          <Alert color='warning'>No Readings yet. Will be done on the first day of the next month</Alert>
             
+        </Grid>
           </Grid>
           <Grid container size={{xs:12,sm:6,md:4}} sx={{display:'block',justifyContent:"center"}}>
             <Grid size={12} sx={{px:1,pt:1}}>
@@ -205,10 +131,9 @@ function RouteComponent() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {bill?.payments.map(item=><TableRow key={item.id}>
+                      {currentPayments.map(item=><TableRow key={item.id}>
                         <TableCell>{moment(item.DateAdded).format("MM/DD")}</TableCell>
-                                            
-                        <TableCell>{item.File.recipientBank} <br /> {e.PaymentBy?.Name || e.PaymentBy?.Email} </TableCell>
+                        <TableCell>{item.File.recipientBank} <br /> {item.PaymentBy?.Name || item.PaymentBy?.Email} </TableCell>
                         <TableCell>{numeral(item.Rate).format("0.00")}</TableCell>
                         <TableCell sx={{textAlign:"right"}}>{numeral(item.File.amount).format("0,0.00")}</TableCell>
                       </TableRow>)}
@@ -217,7 +142,7 @@ function RouteComponent() {
                             <Typography variant="subtitle2" fontWeight="bold">Total Payments</Typography>
                         </TableCell>
                         <TableCell colSpan={2} sx={{textAlign:"right"}}>
-                            <Typography variant="subtitle2" fontWeight="bold">{numeral(bill?.totalPayment).format("0,0.00")}</Typography>
+                            <Typography variant="subtitle2" fontWeight="bold">{numeral(paymentAfter).format("0,0.00")}</Typography>
                         </TableCell>
                       </TableRow>
                     </TableBody>

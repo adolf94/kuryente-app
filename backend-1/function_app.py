@@ -40,6 +40,9 @@ def upload_proof(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
     #TODO : restrict filetype, filesize
 
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    if(user == None):
+        return func.HttpResponse(status_code=401)
 
     print(req.files["file"])
     file = req.files["file"]
@@ -104,7 +107,7 @@ def get_img_by_id(req: func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse("", status_code=401)
 
-    if("KURYENTE_ADMIN" in user["role"] ):
+    if("KURYENTE_ADMIN" not in user["role"] ):
         return func.HttpResponse("", status_code=403)
     
 
@@ -131,7 +134,7 @@ def record_payment(req: func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse("", status_code=401)
 
-    if("KURYENTE_ADMIN" in user["role"] ):
+    if("KURYENTE_ADMIN" not in user["role"] ):
         return func.HttpResponse("", status_code=403)
     
     body = req.get_json()
@@ -173,7 +176,7 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse("", status_code=401)
 
-    if("KURYENTE_ADMIN" in user["role"] ):
+    if("KURYENTE_ADMIN" not in user["role"] ):
         return func.HttpResponse("", status_code=403)
 
     body = req.get_json()
@@ -301,6 +304,19 @@ def add_reading(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="confirm_payment", auth_level=func.AuthLevel.ANONYMOUS)
 def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
 
+
+
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    body = req.get_json()
+    if(user == None):
+        return func.HttpResponse(status_code=401)
+    
+    added_by = { 
+        "name" : user["Name"],
+        "email" : user["Email"]
+    }
+
+
     body = req.get_json()
     if body["fileId"] not in cached_files:
          return func.HttpResponse(json.dumps({"error": "File information is not found or expired. Please try again."}), mimetype="application/json", status_code=400)
@@ -310,10 +326,16 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
     if(ai_data["isValid"] == False):
         return func.HttpResponse(json.dumps({"error": "File information is not found or expired. Please try again."}), mimetype="application/json", status_code=400)
 
+    
+    current_timer = get_latest_from_container("TimerDetails")
+
+    ai_data["days"] = math.floor(float(ai_data["amount"]) / current_timer["Rate"])
+
     if(ai_data["recipientBank"].lower().find("gcash") == -1):
         id = uuid7str()
         data = {
             "File": ai_data,
+            "PaymentBy": added_by,
             "Days":ai_data["days"],
             "id": id,
             "DateAdded": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -336,6 +358,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
             data = {
                 "id": uuid7str(),
                 "File": ai_data,
+                "PaymentBy": added_by,
                 "DateAdded": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "notif": next(result),
                 "Days":ai_data["days"],
@@ -367,7 +390,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
             data = {
                 "File": ai_data,
                 "id": id,
-                
+                "PaymentBy": added_by,
                 "Reason": f"Found {count} matching the payment. needs verification",
                 "Days":ai_data["days"],
                 "DateAdded": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),

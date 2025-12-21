@@ -82,7 +82,7 @@ const AddPaymentDialog = (props: any)=>{
     const submitable = useMemo(()=>{
         if(!form.amount) return false
         return true
-    },[form])
+    },[form.amount])
 
     return <>
     <Button variant="text" onClick={()=>{
@@ -96,12 +96,12 @@ const AddPaymentDialog = (props: any)=>{
         <DialogContent>
             <Grid container spacing={2}>
                 <Grid  size={12}>
-                    <TextField type="date" value={form.datetime} fullWidth onChange={(evt)=>{
+                    <TextField type="date" value={form.datetime} fullWidth size="small" onChange={(evt)=>{
                         setForm({...form, datetime: evt.target.value})
                     }}></TextField>
                 </Grid>
                 <Grid  size={12}>
-                    <TextField select value={form.recipientBank} fullWidth onChange={(evt)=>{
+                    <TextField select value={form.recipientBank} fullWidth size="small" onChange={(evt)=>{
                         setForm({...form, recipientBank: evt.target.value})
                     }}>
                         <MenuItem value="Cash">Cash</MenuItem>
@@ -111,17 +111,20 @@ const AddPaymentDialog = (props: any)=>{
                     </TextField>
                 </Grid>
                 <Grid  size={12}>
-                    <NumberInput label="amount" variant="outlined" value={form.amount} onChange={(evt)=>onFormChange("amount", Number.parseFloat(evt.target.value) )}/>
+                    <NumberInput label="amount" variant="outlined" value={form.amount} size="small" onChange={(evt)=>onFormChange("amount", Number.parseFloat(evt ))}/>
                 </Grid>
                 <Grid  size={12}>
-                    <NumberInput label="rate" variant="outlined" value={form.rate} onChange={(evt)=>onFormChange("rate", Number.parseFloat(evt.target.value) )}/>
+                    <TextField label="Payment By" size="small" fullWidth value={form.paymentBy} onChange={evt=>setForm({...form,paymentBy:evt.target.value})} />
                 </Grid>
                 <Grid  size={12}>
-                    <NumberInput label="days"  variant="outlined" value={form.days} slotProps={{ input : {
+                    <NumberInput label="rate" variant="outlined" value={form.rate} size="small" onChange={(evt)=>onFormChange("rate", Number.parseFloat(evt) )}/>
+                </Grid>
+                <Grid  size={12}>
+                    <NumberInput label="days"  variant="outlined" value={form.days} size="small" slotProps={{ input : {
                         endAdornment: <InputAdornment position="end">days</InputAdornment>
                     }}} 
-                        onChange={(evt)=>onFormChange("days", Number.parseFloat(evt.target.value) )}
-                    inputProps={{ min: 0, style: { textAlign: "right" } }}/>
+                        onChange={(evt)=>onFormChange("days", Number.parseFloat(evt))} 
+                    inputProps={{ min: 0, style: { textAlign: "right" } }} />
                 </Grid>
             </Grid>
         </DialogContent>

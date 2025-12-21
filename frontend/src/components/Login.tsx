@@ -3,6 +3,7 @@ import { Box, Dialog,Button, DialogContent } from "@mui/material"
 import { CredentialResponse, GoogleLogin } from "@react-oauth/google"
 import { useCallback, useMemo, useState } from "react"
 import api from "../utils/api"
+import useLogin from "./GoogleLoginWrapper"
 // import api from "../components/fnApi"
 // import * as Passwordless from '@passwordlessdev/passwordless-client';
 
@@ -38,6 +39,7 @@ const Login = ()=>{
     const [show,setShow] = useState(false)
     const [promise, setPromise] = useState<{ resolve: (token: string | null) => void } | null>(null);
 
+    const {user, setUser} = useLogin()
 
     showLogin = ()=>{
         return new Promise((res)=>{
@@ -63,6 +65,8 @@ const Login = ()=>{
             .then(e=>{
                 window.localStorage.setItem("refresh_token", e.data.refresh_token);
                 window.sessionStorage.setItem("access_token", e.data.access_token);
+                let userinfo = JSON.parse(window.atob(e.data.id_token!.split(".")[1]));
+                setUser({...user,...userinfo,isAuthenticated:true})
                 promise.resolve(e.data.access_token)
             })
     }

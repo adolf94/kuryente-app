@@ -15,6 +15,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ErrorsDownRouteImport } from './routes/errors/down'
 import { Route as ErrorsDeniedRouteImport } from './routes/errors/denied'
 import { Route as UserBillsIndexRouteImport } from './routes/user/bills/index'
+import { Route as UserBillsCurrentRouteImport } from './routes/user/bills/current'
 import { Route as UserBillsBillIdRouteImport } from './routes/user/bills/$billId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const UserBillsIndexRoute = UserBillsIndexRouteImport.update({
   path: '/user/bills/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UserBillsCurrentRoute = UserBillsCurrentRouteImport.update({
+  id: '/user/bills/current',
+  path: '/user/bills/current',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UserBillsBillIdRoute = UserBillsBillIdRouteImport.update({
   id: '/user/bills/$billId',
   path: '/user/bills/$billId',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminIndexRoute
   '/user': typeof UserIndexRoute
   '/user/bills/$billId': typeof UserBillsBillIdRoute
+  '/user/bills/current': typeof UserBillsCurrentRoute
   '/user/bills': typeof UserBillsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/user': typeof UserIndexRoute
   '/user/bills/$billId': typeof UserBillsBillIdRoute
+  '/user/bills/current': typeof UserBillsCurrentRoute
   '/user/bills': typeof UserBillsIndexRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/user/': typeof UserIndexRoute
   '/user/bills/$billId': typeof UserBillsBillIdRoute
+  '/user/bills/current': typeof UserBillsCurrentRoute
   '/user/bills/': typeof UserBillsIndexRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/user'
     | '/user/bills/$billId'
+    | '/user/bills/current'
     | '/user/bills'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/user'
     | '/user/bills/$billId'
+    | '/user/bills/current'
     | '/user/bills'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/user/'
     | '/user/bills/$billId'
+    | '/user/bills/current'
     | '/user/bills/'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   UserIndexRoute: typeof UserIndexRoute
   UserBillsBillIdRoute: typeof UserBillsBillIdRoute
+  UserBillsCurrentRoute: typeof UserBillsCurrentRoute
   UserBillsIndexRoute: typeof UserBillsIndexRoute
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UserBillsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/user/bills/current': {
+      id: '/user/bills/current'
+      path: '/user/bills/current'
+      fullPath: '/user/bills/current'
+      preLoaderRoute: typeof UserBillsCurrentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/user/bills/$billId': {
       id: '/user/bills/$billId'
       path: '/user/bills/$billId'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   UserIndexRoute: UserIndexRoute,
   UserBillsBillIdRoute: UserBillsBillIdRoute,
+  UserBillsCurrentRoute: UserBillsCurrentRoute,
   UserBillsIndexRoute: UserBillsIndexRoute,
 }
 export const routeTree = rootRouteImport

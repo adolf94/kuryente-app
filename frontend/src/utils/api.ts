@@ -24,7 +24,7 @@ const processQueue = (error, token = null) => {
 
 
 
-const getTokenViaRefreshToken = ()=>{
+export const getTokenViaRefreshToken = ()=>{
   let token = window.localStorage.getItem("refresh_token");
   if(!token) return ""
   return axios.post(`${window.webConfig.auth}/auth/refresh`,{
@@ -49,13 +49,14 @@ export const getToken = async (force? : boolean, config? : AxiosRequestConfig, a
 
 
   if (!token || force){
-    isExpired = true
+      //get token via refresh token  
+        isExpired = true
   }else{
     let tokenJson = JSON.parse(window.atob(token!.split(".")[1]));
   
-    if (moment().add(1, "minute").isAfter(tokenJson.exp * 1000 ))
-      // token = await getTokenFromApi();
-    isExpired = true
+    if (moment().add(1, "minute").isAfter(tokenJson.exp * 1000 )){
+      isExpired = true
+    }
   }
 
 

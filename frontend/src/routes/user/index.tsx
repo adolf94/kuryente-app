@@ -13,7 +13,7 @@ import AddReadingDialog from '../../components/index/admin/AddReadingDialog'
 import numeral from 'numeral'
 import { useQuery } from '@tanstack/react-query'
 import { BILL, getAllReadings, getBills, getPayments, PAYMENT, READING, useAllBills, useAllPayments, useAllReading } from '../../repositories/repository'
-import BillCard from '../../components/index/user/BillCard'
+import BillCard, { UnbilledBillCard } from '../../components/index/user/BillCard'
 
 
 const RouteComponent = ()=>{
@@ -32,8 +32,11 @@ const RouteComponent = ()=>{
             <Grid size={{xs:12, md:12}} sx={{p:1}}>
                 <Typography variant='h5'>Bill Summary </Typography>
                 <Grid container>
+                    <Grid size={{xs:12,sm:6,md:3}} sx={{p:1}}>
+                        <UnbilledBillCard payments={payments}/>
+                    </Grid>
                     {bills.sort((a,b)=>a.id<b.id?1:-1)
-                        .slice(0,4)
+                        .slice(0,3)
                         .map(e=><Grid key={e.id} size={{xs:12,sm:6,md:3}} sx={{p:1}}>
                             <BillCard item={e} date={e.id}/>
                             </Grid>)    }
@@ -107,15 +110,20 @@ const RouteComponent = ()=>{
                                     <Grid size={6} sx={{textAlign:"right",pb:1}}>
                                         <StatusChip value={e.Status} size="small"></StatusChip>
                                     </Grid>
-                                    <Grid size={6}>
+                                    <Grid size={4}>
                                         <Typography variant='body2'>
                                                                     
                                             {e.File.fileId && <ViewImageDialog fileId={e.File.fileId} />}
                                             {e.File?.recipientBank}
                                         </Typography>
                                     </Grid>
+                                    <Grid size={4}>
+                                        <Typography variant='body2'>
+                                            {e.PaymentBy?.Name || e.PaymentBy?.Email}
+                                        </Typography>
+                                    </Grid>
                                     
-                                    <Grid size={6} sx={{textAlign:"right",pb:1}}>
+                                    <Grid size={4} sx={{textAlign:"right",pb:1}}>
                                         <Typography variant='body2'>
                                         {numeral(e.File.amount).format("0,0.00")}</Typography>
                                     </Grid>

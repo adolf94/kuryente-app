@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import numeral from "numeral"
 import {useConfirm} from 'material-ui-confirm'
 import { anonApi } from "../../utils/apiOld";
+import useLogin from "../GoogleLoginWrapper";
+import api from "../../utils/api";
 
 
 
@@ -17,7 +19,7 @@ const ImageModal = ()=>{
     const [show, setShow] = useState("")
     const [agree, setAgree] = useState(false)
     const confirm = useConfirm()
-
+    const {user, setUser} = useLogin()
     const handleFileChange = (event) => {
         console.log(event.target.files)
 
@@ -44,7 +46,7 @@ const ImageModal = ()=>{
         formData.append("file",file)        
         formData.append("filename",file.name)
 
-        anonApi.post("/upload_proof", formData, {
+        api.post("/upload_proof", formData, {
             headers: {
                 "Content-Type": "multipart/form-data"
             }
@@ -58,7 +60,7 @@ const ImageModal = ()=>{
 
     const confirmPayment = ()=>{
         setShow("loading")
-        anonApi.post("/confirm_payment", {
+        api.post("/confirm_payment", {
             fileId: result.fileId
         }).then(res=>{
             if(res.data.status == "Approved"){
@@ -93,6 +95,13 @@ const ImageModal = ()=>{
 
         return Math.floor((amount - (transactionFee || 0)) / 150)
 
+    }
+
+    const onUploadClicked = async ()=>{
+        if(!user.isLoggedIn()){
+            await api.get("/get_timer_info")
+        }
+        fileRef.current!.click()
     }
 
     return <>
@@ -176,9 +185,10 @@ const ImageModal = ()=>{
         />
         <Button
             component="label" // Important: Makes the button act as a label for the input
-            htmlFor="file-upload-input" // Links the button to the hidden input
             variant="contained"
-            startIcon={<CloudUpload />} >
+            startIcon={<CloudUpload />} 
+            onClick={()=>onUploadClicked()}
+            >
             Upload Payment proof
         </Button>
         <Typography variant='body2'><b>Current Rate: </b> PHP 150.00 per day</Typography>

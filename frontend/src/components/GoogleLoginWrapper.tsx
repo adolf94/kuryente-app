@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Token } from "@mui/icons-material";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
 import moment from "moment";
+import { getTokenViaRefreshToken } from "../utils/api";
 
 
 export const AuthContext = createContext<{user:UserInfo, setUserInfo:React.Dispatch<React.SetStateAction<UserInfo>>}>({
@@ -22,6 +23,7 @@ export interface UserInfo {
     email: string;
     picture: string;
     sub: string;
+    isLoggedIn: ()=>boolean;
     role: string | string[];
 }
 export var navigate = ()=>{}
@@ -35,27 +37,40 @@ export const AuthContextProvider = ({children})=>{
         email: "",
         picture: "",
         sub: "",
+        isLoggedIn:()=>false,
         role: ""
     })
     const [initialized, setInitialized] = useState(false)
+    const isLoggedIn = ()=>{
+        let token = window.sessionStorage.getItem("access_token")
+        if( !token) return false;
+        let tokenJson = JSON.parse(window.atob(token!.split(".")[1]));
+        if (moment().add(1, "minute").isAfter(tokenJson.exp * 1000 )){
+            return false;
+        }
+        return true
+    }
     useEffect(()=>{
-        let token = window.localStorage.getItem("access_token")
-        if (!token) {
-            console.log("no token")
+        (async()=>{
+            let token = await getTokenViaRefreshToken()
+            if(!token){
+                setInitialized(true)
+                
+                setUser({...user, isLoggedIn})
+                return
+            }
+            const tokenJson = jwtDecode<JwtPayload & UserInfo>(token!)
+            console.debug("tokenJson", moment(tokenJson.exp! * 1000).fromNow());
+            if (moment().add(1, "minute").isAfter(tokenJson.exp! * 1000)){
+                console.log("token expired")
+                window.localStorage.removeItem("access_token")
+                setInitialized(true)
+                return
+            }
+            setUser({...tokenJson, isAuthenticated: true, isLoggedIn})
             setInitialized(true)
-            return
-        }
-        
-        const tokenJson = jwtDecode<JwtPayload & UserInfo>(token!)
-        console.debug("tokenJson", moment(tokenJson.exp! * 1000).fromNow());
-        if (moment().add(1, "minute").isAfter(tokenJson.exp! * 1000)){
-            console.log("token expired")
-            window.localStorage.removeItem("access_token")
-            setInitialized(true)
-            return
-        }
-        setUser({...tokenJson, isAuthenticated: true})
-        setInitialized(true)
+        })()
+       
 
     },[])
 
@@ -72,3 +87,4 @@ const useLogin = ()=>{
 }
 
 export default useLogin 
+

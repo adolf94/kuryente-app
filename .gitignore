@@ -133,6 +133,4 @@ __blobstorage__
 __queuestorage__
 __azurite_db*__.json
 .python_packages
-frontend/.tanstack/tmp/082ec3ed-585bafbe91f2fe1b0b4633875b6a9f28
-frontend/.tanstack/tmp/082ec3ed-ed2beab6a16b13b080837083dd78d591
-frontend/.tanstack/tmp/474acebf-3e37b56fc108cafefd7c40f58dfec53a
+frontend/.tanstack

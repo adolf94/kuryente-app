@@ -26,7 +26,13 @@ const Index = ()=>{
         anonApi.get("/get_timer_info").then(res=>{
             setTimer(res.data )
         })
+        let token = window.localStorage.getItem("id_token")
+        if(!token) return
+
+        let userinfo = JSON.parse(window.atob(token.split(".")[1]));
+        setUser({isAuthenticated:true, ...userinfo})
     },[])
+
 
 
     const loginGoogle = useGoogleLogin({
@@ -57,13 +63,10 @@ const Index = ()=>{
                 })
                 .then(res=>{
                     window.localStorage.setItem("id_token", res.id_token);
-                    
-                    
+                                       
                     // handleToken(res.id_token)
                     setLoading(false);
                 });
-
-
 
         },
         flow: 'auth-code',
@@ -75,9 +78,9 @@ const Index = ()=>{
             .then(e=>{
                 window.localStorage.setItem("refresh_token", e.data.refresh_token);
                 window.sessionStorage.setItem("access_token", e.data.access_token);
+                let userinfo = JSON.parse(window.atob(e.data.id_token!.split(".")[1]));
                 navigate({to:"/user"})
-                let userinfo = JSON.parse(window.atob(e.data.access_token!.split(".")[1]));
-                setUser({isAuthenticated:true, ...userinfo})
+                setUser({ ...user, isAuthenticated:true, ...userinfo})
                 setLoading(false);
 
                 return e.data;
@@ -94,14 +97,6 @@ const Index = ()=>{
                     navigate({to:"/errors/denied"})
                 }
             })
-            // .then(res=>{
-            //     window.localStorage.setItem("id_token", res.id_token);
-                
-                
-            //     // handleToken(res.id_token)
-            //     setLoading(false);
-            // });
-
     }
 
 
@@ -145,7 +140,7 @@ const Index = ()=>{
                 <CardContent>
                     <Typography variant='h6'>Login to view history</Typography>
                     
-                    {user.isAuthenticated ?
+                    {user.isLoggedIn() ?
                     <Box display="block" sx={{pt:1, textAlign:"center"}}>
                         <Button variant='contained' size="large" loading={loading} onClick={()=>navigate({to:"/user"})}>Go to Dashboard</Button>
                     </Box>: <Grid container sx={{pt:1, textAlign:"center", justifyContent:"center"}}>
