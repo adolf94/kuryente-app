@@ -208,7 +208,7 @@ function RouteComponent() {
                       {bill?.payments.map(item=><TableRow key={item.id}>
                         <TableCell>{moment(item.DateAdded).format("MM/DD")}</TableCell>
                                             
-                        <TableCell>{item.File.recipientBank} <br /> {e.PaymentBy?.Name || e.PaymentBy?.Email} </TableCell>
+                        <TableCell>{item.File.recipientBank} <br /> {item.PaymentBy?.Name || item.PaymentBy?.Email} </TableCell>
                         <TableCell>{numeral(item.Rate).format("0.00")}</TableCell>
                         <TableCell sx={{textAlign:"right"}}>{numeral(item.File.amount).format("0,0.00")}</TableCell>
                       </TableRow>)}

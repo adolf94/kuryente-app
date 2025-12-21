@@ -11,12 +11,18 @@ export const getPayments = ()=>{
       return e.data
     })
 }
-export const useAllPayments = (queryOptions?: UseQueryOptions) =>  useQuery<any>({
+
+interface UseQueryOptionsMod extends Partial<UseQueryOptions> {
+    unsetPlaceholder?: boolean
+}   
+
+
+export const useAllPayments = (queryOptions?: UseQueryOptionsMod) =>  useQuery<any>({
+    placeholderData:queryOptions?.unsetPlaceholder ? undefined :[],
     ...(queryOptions|| {}),
         queryKey: [PAYMENT],
         queryFn: ()=>getPayments(),
         networkMode:'online',
-        placeholderData:[]
     })
 
 export const usePaymentMutation = ()=>{
@@ -76,12 +82,11 @@ export const getAllReadings = ()=>{
         return e.data
       })
 }
-export const useAllReading = (queryOptions? : UseQueryOptions)=>useQuery<any>({
+export const useAllReading = (queryOptions? : UseQueryOptionsMod)=>useQuery<any>({
+    placeholderData:queryOptions?.unsetPlaceholder ? undefined :[],
     ...(queryOptions|| {}),
     queryKey: [READING],
     queryFn: ()=>getAllReadings(),
-    networkMode:'online',
-    placeholderData:[]
 })
 
 export const useReadingMutation = ()=>{
@@ -104,11 +109,11 @@ export const getBills = ()=>{
     return api<any[]>("/bills")
         .then(e=>e.data)
 }
-export const useAllBills = (queryOptions? : UseQueryOptions)=>useQuery<any>({
+export const useAllBills = (queryOptions? : UseQueryOptionsMod)=>useQuery<any>({
+    placeholderData:queryOptions?.unsetPlaceholder ? undefined :[],
     ...(queryOptions|| {}),
     queryKey : [BILL],
     queryFn: ()=>getBills(),
-    placeholderData:[],
     networkMode:'online',
     
 })
