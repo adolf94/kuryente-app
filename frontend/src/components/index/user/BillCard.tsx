@@ -48,7 +48,6 @@ export const UnbilledBillCard = ({payments})=>{
     const navigate = useNavigate()
 
     const paymentAfter = useMemo(()=>{
-        console.log(payments)
         return payments.filter(e=>{
            return e.DateAdded > bill?.dateEnd
         }).reduce((prev,cur)=>{

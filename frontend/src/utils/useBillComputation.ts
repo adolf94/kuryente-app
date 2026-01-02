@@ -194,6 +194,9 @@ const useBillComputation = (date)=>{
                                 date : moment(current.date).clone().add(-1,"month").format("YYYY-MM-DD")
                                 //prior read date was just fetch for date reference of the estimated consumption
                               }
+
+                              current.prevReading = current.reading && current.reading - current.consumption 
+
                               if(!shouldEstimate) return
                               let priorReadDate = moment(e.date)
                               let firstReadDate = moment(current.date)

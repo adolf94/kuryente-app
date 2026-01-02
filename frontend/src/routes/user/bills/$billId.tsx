@@ -140,7 +140,7 @@ function RouteComponent() {
           if(a.reading?.dateStart < b.reading?.dateStart) return 1
           if(a.reading?.dateStart == b.reading?.dateStart) return 0
           return -1
-        }).map(reading=><Grid size={12} sx={{p:1}} key={reading.id}>
+        }).map((reading,i)=><Grid size={12} sx={{p:1}} key={reading.id}>
               <Card>
                 <CardContent>
                   <Grid container>
@@ -148,15 +148,20 @@ function RouteComponent() {
                       <Typography variant='body1'>{reading.type}</Typography>
                     </Grid>
                     <Grid size={6}>
-                      <Typography variant='caption'>Reading Period</Typography>
+                      <Typography variant='caption' sx={{display:"block"}}>Reading Period</Typography>
                       <Typography variant='body2'>{moment(reading?.prorated?.dateStart || reading?.dateStart ).format("MM/DD")} - {moment(reading?.prorated?.dateEnd || reading?.dateEnd).format("MM/DD")}</Typography>
                     </Grid>
                     <Grid size={6}>
-                      <Typography variant='caption'>Meter Reading</Typography>
-                      <Typography variant='body2'>{reading?.prorated?.reading || reading?.reading || "N/A"}</Typography>
+                      <Typography variant='caption' sx={{display:"block"}}>Meter Reading</Typography>
+                      <Typography variant='body2'  sx={{display:"inline"}} >{reading?.prorated?.reading || reading?.reading || "N/A"}</Typography>
+                        {
+                          !!reading?.prorated?.prevReading || reading?.prevReading  ? 
+                            <Typography variant='body2'  sx={{display:"inline", color:"#777"}}> (prev: {reading?.prorated?.prevReading || reading?.prevReading || "N/A"})</Typography> :
+                            <></>
+                        }
                     </Grid>
                     <Grid size={6}>
-                      <Typography variant='caption'>Consumption</Typography>
+                      <Typography variant='caption'  sx={{display:"block"}}>Consumption</Typography>
                       <Typography variant='body2'>{numeral(reading.prorated?.consumption || reading.consumption).format("0,0.00")}</Typography>
                     </Grid>
                     <Grid size={6}>
