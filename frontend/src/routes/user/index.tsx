@@ -50,7 +50,7 @@ const RouteComponent = ()=>{
                     </>:<>
 
                         <Grid size={{xs:12,sm:6,md:3}} sx={{p:1}}>
-                            {payLoading ? <LoadingBillCard />: <UnbilledBillCard payments={payments}/>}
+                            {payLoading && moment().date() > 7 ? <LoadingBillCard />: <UnbilledBillCard payments={payments}/>}
                         </Grid>
                         {
                             bills.sort((a,b)=>a.id<b.id?1:-1)

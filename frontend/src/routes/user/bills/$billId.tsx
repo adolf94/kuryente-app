@@ -156,7 +156,7 @@ function RouteComponent() {
                       <Typography variant='body2'  sx={{display:"inline"}} >{reading?.prorated?.reading || reading?.reading || "N/A"}</Typography>
                         {
                           !!reading?.prorated?.prevReading || reading?.prevReading  ? 
-                            <Typography variant='body2'  sx={{display:"inline", color:"#777"}}> (prev: {reading?.prorated?.prevReading || reading?.prevReading || "N/A"})</Typography> :
+                            <Typography variant='body2'  sx={{display:"inline", color:"#777"}}>  (prev: {reading?.prorated?.prevReading || reading?.prevReading || "N/A"})</Typography> :
                             <></>
                         }
                     </Grid>
