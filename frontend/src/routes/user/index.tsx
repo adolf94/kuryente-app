@@ -48,13 +48,15 @@ const RouteComponent = ()=>{
                         <LoadingBillCard />
                     </Grid>
                     </>:<>
-
-                        <Grid size={{xs:12,sm:6,md:3}} sx={{p:1}}>
-                            {payLoading  ? <LoadingBillCard />:moment().date() > 7 ?<UnbilledBillCard payments={payments}/> : null}
-                        </Grid>
+                        {
+                            moment().date() > 7 && 
+                            <Grid size={{xs:12,sm:6,md:3}} sx={{p:1}}>
+                                {payLoading  ? <LoadingBillCard />: <UnbilledBillCard payments={payments}/>}
+                            </Grid>
+                        }
                         {
                             bills.sort((a,b)=>a.id<b.id?1:-1)
-                        .slice(0,(moment().date() > 7 ? 3:4))
+                        .slice(0,3)
                         .map(e=><Grid key={e.id} size={{xs:12,sm:6,md:3}} sx={{p:1}}>
                             <BillCard item={e} date={e.id}/>
                             </Grid>)
