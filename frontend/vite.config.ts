@@ -10,6 +10,8 @@ export default defineConfig({
     headers: {
        'Cross-Origin-Embedder-Policy': 'unsafe-none'
     },
+  },build: {
+    sourcemap: true
   },
   plugins: [
     mkcert(),
