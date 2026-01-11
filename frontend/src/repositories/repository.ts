@@ -39,7 +39,7 @@ export const usePaymentMutation = ()=>{
     })
 
     const decide_admin = useMutation({
-        mutationFn:(id, decision)=>{
+        mutationFn:({id,decision})=>{
             return api.post("/decide_payment", {
                 id: id,
                 newStatus:decision

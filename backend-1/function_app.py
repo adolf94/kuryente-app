@@ -5,6 +5,8 @@ import tempfile
 import math
 import azure.functions as func
 import logging
+
+import pytz
 from deps.google_auth import verify_custom_jwt
 from deps.tuya import get_status, save_status_checkpoint, switch_device
 from deps.textbee_sms import send_sms
@@ -195,7 +197,7 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
         current_timer = get_latest_from_container("TimerDetails")
         last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
         days_to_add = math.floor(float(item["File"]["amount"]) / current_timer["Rate"])
-        new_disconnect_time = get_disconnect_time(last_disconnect_time) + datetime.timedelta(days=days_to_add)
+        new_disconnect_time = get_disconnect_time(pytz.utc.localize(last_disconnect_time)) + datetime.timedelta(days=days_to_add)
         new_daily = compute_daily()
         new_data = {
             "id": uuid7str(),

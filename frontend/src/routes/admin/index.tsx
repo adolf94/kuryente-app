@@ -49,11 +49,11 @@ function RouteComponent() {
     }).then(async (val)=>{
       if(!val) return
       if(val.confirmed)
-          await decide_admin.mutateAsync(data[index].id, decision.label)
+          var res = await decide_admin.mutateAsync({id:data[index].id, decision:decision.label})
           if(decision.label == "Approved"){
             confirm({
               title: "Approved",
-              description: `Elec/Water has been extended till ${moment(res?.data.timer.DisconnectTime).format("MMM DD")}`,
+              description: `Elec/Water has been extended till ${moment(res?.timer.DisconnectTime).format("MMM DD")}`,
               hideCancelButton:true
             })
           }else{
