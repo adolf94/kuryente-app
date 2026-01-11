@@ -27,7 +27,7 @@ const Index = ()=>{
         if(!token) return
 
         let userinfo = JSON.parse(window.atob(token.split(".")[1]));
-        setUser({isAuthenticated:true, ...userinfo})
+        setUser({...user,isAuthenticated:true, ...userinfo})
     },[])
 
 
@@ -43,7 +43,7 @@ const Index = ()=>{
                     window.localStorage.setItem("refresh_token", e.data.refresh_token);
                     window.localStorage.setItem("access_token", e.data.access_token);
                     navigate({to:"/user"})
-                    setUser({isAuthenticated:true, ...e.data.user_info})
+                    setUser({...user,isAuthenticated:true, ...e.data.user_info})
                     return e.data;
                 }).catch(err => {
                     if (!err.response?.status) {

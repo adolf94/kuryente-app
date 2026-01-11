@@ -36,7 +36,6 @@ export const getTokenViaRefreshToken = ()=>{
   .then((e) => {
     window.sessionStorage.setItem("access_token", e.data.access_token);
     window.localStorage.setItem("refresh_token", e.data.refresh_token);
-    window.localStorage.setItem("id_token", e.data.id_token);
     return e.data.access_token;
   })
   .catch(() => {
