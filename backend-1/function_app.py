@@ -145,7 +145,8 @@ def record_payment(req: func.HttpRequest) -> func.HttpResponse:
         "PartitionKey" : "default",
         "Status": "Approved",
         "DateAdded": datetime.datetime.now(tz=datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "File": body
+        "File": body,
+        "PaymentBy": body["PaymentBy"]
     }
 
     add_to_app("PaymentsUploads", new_item)
