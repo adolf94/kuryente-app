@@ -64,7 +64,7 @@ const PaymentCard = ({payment : e})=>{
                 </Grid>
                 <Grid size={4}>
                     <Typography variant='body2'>
-                        {e.PaymentBy?.Name || e.PaymentBy?.Email}
+                        {e.PaymentBy?.Name || e.PaymentBy?.Email || e.PaymentBy}
                     </Typography>
                 </Grid>
                 
