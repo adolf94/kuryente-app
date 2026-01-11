@@ -1,11 +1,14 @@
 
 
 import datetime
+import math
 import os
 from azure.identity import DefaultAzureCredential
 from azure.cosmos import CosmosClient
 from dateutil.relativedelta import relativedelta
 import pytz
+
+from deps.util import date_diff_with_tz
 
 tz_default = pytz.timezone(os.environ["TIMEZONE"])
 
@@ -21,7 +24,7 @@ def datestr_to_utcstr(date):
     utc_string = utc_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
     return utc_string
 
-def utcstr_to_datetime(str):
+def  utcstr_to_datetime(str):
     if not str.endswith('Z'):
         str = str + "Z"
 
@@ -45,7 +48,7 @@ def get_db(name = os.environ["COSMOS_DB"]):
 def get_latest_from_container(container : str):
     db = get_db()
     container = db.get_container_client(container)
-    items = container.query_items("select * from c order by c._ts desc offset 0 limit 1", enable_cross_partition_query=True)
+    items = container.query_items("select * from c order by c.DisconnectTime desc offset 0 limit 1", enable_cross_partition_query=True)
     item = next(items, None)
     return item
 
@@ -258,6 +261,9 @@ def create_monthly_bill(date):
     payment_amount =  sum(item["File"]['amount'] for item in payments)
     current_amount = sum(item["consumption"] * item["per_unit"] for item in readings)
 
+    
+
+
     current_bill = {
         "id" :date,
         "dateStart" : current_start_str,
@@ -271,3 +277,49 @@ def create_monthly_bill(date):
 
     add_to_app("Bills", current_bill)
     return current_bill
+
+
+def compute_daily():
+    #get previous balance
+    db = get_db()
+    container = db.get_container_client("Bills")
+    items = container.query_items("""select top 1 * from c
+                                    order by c.dateEnd Desc                                  
+                                  """, partition_key="default")
+    prev_balance = next(items, None)
+    use_for_compute = prev_balance["current"]
+    outstanding = prev_balance["balance"]
+    current = prev_balance["current"]
+
+
+
+    timers = db.get_container_client("TimerDetails")
+    timers_res = timers.query_items("""select top 1 * from c
+                                    order by c.DisconnectTime Desc                              
+                                  """, partition_key="default")
+
+    last_timer = next(timers_res,None)
+
+
+    difference = date_diff_with_tz(prev_balance["id"], pytz.utc, last_timer["DisconnectTime"], tz_default)
+
+    days_to_pay = 30 if difference < 0 else (30-difference)
+
+    #should compute which is higher outstanding or current_daily * 30
+                            
+    
+
+
+    if(current > outstanding):
+        use_for_compute = (outstanding  + current) / 2 #if mas malaki ung current sa outstanding divide by 2 nalang
+    elif outstanding > (current * 1.05) :
+        use_for_compute = current * 1.05
+    else:
+        use_for_compute = outstanding
+
+    daily = math.ceil(use_for_compute / 300) * 10
+    
+    return daily
+    
+
+

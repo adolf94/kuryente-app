@@ -56,7 +56,7 @@ const RouteComponent = ()=>{
                         }
                         {
                             bills.sort((a,b)=>a.id<b.id?1:-1)
-                        .slice(0,moment().date() > 7?3,4)
+                        .slice(0,moment().date() > 7?3:4)
                         .map(e=><Grid key={e.id} size={{xs:12,sm:6,md:3}} sx={{p:1}}>
                             <BillCard item={e} date={e.id}/>
                             </Grid>)

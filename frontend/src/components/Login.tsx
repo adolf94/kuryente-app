@@ -39,7 +39,7 @@ const Login = ()=>{
     const [show,setShow] = useState(false)
     const [promise, setPromise] = useState<{ resolve: (token: string | null) => void } | null>(null);
 
-    const {user, setUser} = useLogin()
+    const {user,setRefreshing, setUser} = useLogin()
 
     showLogin = ()=>{
         return new Promise((res)=>{
@@ -61,12 +61,16 @@ const Login = ()=>{
 
     const onGoogleSuccess = (data: CredentialResponse)=>{
         setShow(false)
+        setRefreshing(true)
         api.post(`${window.webConfig.auth}/auth/google_credential`, data, { preventAuth: true })
             .then(e=>{
+                
                 window.localStorage.setItem("refresh_token", e.data.refresh_token);
                 window.sessionStorage.setItem("access_token", e.data.access_token);
+                window.sessionStorage.setItem("id_token", e.data.id_token);
                 let userinfo = JSON.parse(window.atob(e.data.id_token!.split(".")[1]));
                 setUser({...user,...userinfo,isAuthenticated:true})
+                setRefreshing(false)
                 promise.resolve(e.data.access_token)
             })
     }

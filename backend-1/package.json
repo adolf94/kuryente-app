@@ -1,0 +1,11 @@
+{
+  "name": "backend-1",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "func azure functionapp publish kuryenteapp1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

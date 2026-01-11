@@ -49,7 +49,7 @@ function RouteComponent() {
     }).then(async (val)=>{
       if(!val) return
       if(val.confirmed)
-          await decide_admin.mutateAsync(data[index], decision.label)
+          await decide_admin.mutateAsync(data[index].id, decision.label)
           if(decision.label == "Approved"){
             confirm({
               title: "Approved",

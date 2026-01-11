@@ -8,12 +8,13 @@ import logging
 from deps.google_auth import verify_custom_jwt
 from deps.tuya import get_status, save_status_checkpoint, switch_device
 from deps.textbee_sms import send_sms
-from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, create_monthly_bill, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container, get_reading_by_date
+from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, compute_daily, create_monthly_bill, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container, get_reading_by_date
 from deps.google_ai import identify_img_transact_ai
 from deps.azure_blob import get_file, upload_to_azure,container_name
 from werkzeug.utils import secure_filename
 from uuid_extensions import uuid7, uuid7str
 
+from deps.util import get_disconnect_time
 from httpblueprint import bp
 app = func.FunctionApp()
 
@@ -152,12 +153,13 @@ def record_payment(req: func.HttpRequest) -> func.HttpResponse:
     current_timer = get_latest_from_container("TimerDetails")
     last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
     new_disconnect_time = last_disconnect_time + datetime.timedelta(days=body["days"])
+    new_daily = compute_daily()
     new_data = {
         "id": uuid7str(),
         "PartitionKey": "default",
         "DisconnectTime": new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "PaymentId": new_item["id"],
-        "Rate": current_timer["Rate"]
+        "Rate": new_daily
     }
     switch_device(True)
     add_to_app("TimerDetails",new_data)
@@ -192,13 +194,14 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
         current_timer = get_latest_from_container("TimerDetails")
         last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
         days_to_add = math.floor(float(item["File"]["amount"]) / current_timer["Rate"])
-        new_disconnect_time = last_disconnect_time + datetime.timedelta(days=days_to_add)
+        new_disconnect_time = get_disconnect_time(last_disconnect_time) + datetime.timedelta(days=days_to_add)
+        new_daily = compute_daily()
         new_data = {
             "id": uuid7str(),
             "PartitionKey": "default",
             "DisconnectTime": new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "PaymentId": item["id"],
-            "Rate": current_timer["Rate"]
+            "Rate": new_daily
         }
         switch_device(True)
         item["Days"] = days_to_add
@@ -312,8 +315,8 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(status_code=401)
     
     added_by = { 
-        "name" : user["Name"],
-        "email" : user["Email"]
+        "name" : user["name"],
+        "email" : user["email"]
     }
 
 
@@ -344,8 +347,17 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
         }
          #notif
         add_to_app("PaymentsUploads", data)
-        send_sms(os.environ["SMS_NUMBER"],f"ACTION REQUIRED: New payment ({ai_data["recipientBank"]}) from kuryente-app is in for review!---{id}")
+        last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
 
+        if("ExtendedTimer" not in current_timer):
+            extended = datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1,hours=10)
+            extended = extended.replace(hour=6,minute=0,second=0)
+            current_timer["ExtendedTimer"] = extended.strftime("%Y-%m-%dT%H:%M:%SZ")
+            add_to_app("TimerDetails",current_timer)
+            switch_device(True)
+
+
+        send_sms(os.environ["SMS_NUMBER"],f"ACTION REQUIRED: New payment ({ai_data["recipientBank"]}) from kuryente-app is in for review!---{id}")
     else:
         result = check_notifs_gcash(ai_data)
         current_timer = get_latest_from_container("TimerDetails")
@@ -370,13 +382,16 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
 
             last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
             days_to_add = math.floor(float(ai_data["amount"]) / current_timer["Rate"])
-            new_disconnect_time = last_disconnect_time + datetime.timedelta(days=days_to_add)
+
+            new_disconnect_time = get_disconnect_time(last_disconnect_time) + datetime.timedelta(days=days_to_add)
+            
+            new_daily = compute_daily()
             new_data = {
                 "id": uuid7str(),
                 "PartitionKey": "default",
                 "DisconnectTime": new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "PaymentId": data["id"],
-                "Rate": current_timer["Rate"]
+                "Rate": new_daily
             }
             switch_device(True)
             add_to_app("TimerDetails",new_data)

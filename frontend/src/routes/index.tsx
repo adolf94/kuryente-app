@@ -10,14 +10,11 @@ import { GoogleLogin, useGoogleLogin, type CredentialResponse } from '@react-oau
 import useLogin from '../components/GoogleLoginWrapper'
 import { anonApi } from '../utils/apiOld'
 
-export const Route = createFileRoute('/')({
-  component: Index,
-})
-
 const Index = ()=>{
 
     const [timer,setTimer] = useState({
-        DisconnectTime : ""
+        DisconnectTime : "",
+        ExtendedTimer:""
     })
     const [loading, setLoading] = useState(false)
     const {user, setUser} = useLogin()
@@ -78,6 +75,7 @@ const Index = ()=>{
             .then(e=>{
                 window.localStorage.setItem("refresh_token", e.data.refresh_token);
                 window.sessionStorage.setItem("access_token", e.data.access_token);
+                window.localStorage.setItem("id_token", e.data.id_token);
                 let userinfo = JSON.parse(window.atob(e.data.id_token!.split(".")[1]));
                 navigate({to:"/user"})
                 setUser({ ...user, isAuthenticated:true, ...userinfo})
@@ -106,7 +104,7 @@ const Index = ()=>{
         <Grid size={12} sx={{p:2, display:"flex", justifyContent:"center", alignItems:"center"}}>
             <Box sx={{display:"block"}}>
                 <Box sx={{display:"block",  textAlign:"center"}}>
-                    <Timer date={timer?.DisconnectTime} /><br />
+                    <Timer date={timer?.ExtendedTimer || timer?.DisconnectTime} /><br />
                 </Box>
                 <Box>
                     <i>Disconnection will be automatic when timer counts down to 00:00</i>
@@ -118,7 +116,7 @@ const Index = ()=>{
             <Card>
                 <CardContent>
                     <Typography variant='h5'>Extend Electricity</Typography>
-                     <ImageModal />
+                     <ImageModal timer={timer}/>
 
                     <Typography variant="h6">Instructions:</Typography> 
                     <Typography variant="body1" sx={{pl:2}}>
@@ -157,3 +155,8 @@ const Index = ()=>{
     
   )
 }
+
+
+export const Route = createFileRoute('/')({
+  component: Index,
+})

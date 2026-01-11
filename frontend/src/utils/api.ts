@@ -2,6 +2,7 @@
 import moment from "moment";
 // import { enqueueSnackbar } from "notistack";
 import { showLogin } from "../components/Login";
+import { setRefreshing } from "../components/GoogleLoginWrapper";
 
 
 
@@ -27,6 +28,7 @@ const processQueue = (error, token = null) => {
 export const getTokenViaRefreshToken = ()=>{
   let token = window.localStorage.getItem("refresh_token");
   if(!token) return ""
+  setRefreshing(true)
   return axios.post(`${window.webConfig.auth}/auth/refresh`,{
     refresh_token: token,
     app: 'finance'
@@ -34,10 +36,13 @@ export const getTokenViaRefreshToken = ()=>{
   .then((e) => {
     window.sessionStorage.setItem("access_token", e.data.access_token);
     window.localStorage.setItem("refresh_token", e.data.refresh_token);
+    window.localStorage.setItem("id_token", e.data.id_token);
     return e.data.access_token;
   })
   .catch(() => {
     return ""
+  }).finally(()=>{
+    setRefreshing(false)
   });
 
 }
@@ -185,24 +190,6 @@ api.interceptors.request.use(async (config: AxiosRequestConfig) => {
 
 api.interceptors.response.use(
     async (data) => {
-        //     const headerTransId = data.headers["x-last-trans"];
-        // if (!data.config?.noLastTrans && !!headerTransId) {
-        //     const lastTransId = localStorage.getItem("last_transaction");
-        //     const stgTransId = localStorage.getItem("stg_transaction");
-        //     if (!!lastTransId && headerTransId !== lastTransId && stgTransId !== headerTransId) {
-        //         //Do fetch new data
-        //             queryClient.prefetchQuery({ queryKey: [TRANSACTION, { after: lastTransId }], queryFn: () => getAfterTransaction(lastTransId) })
-        //     }
-        // }
-        // if (!headerTransId) {
-        //     console.debug("no last-trans found " + data.config.url);
-        // }
-            
-
-        // //queryClient
-
-
-        
         return data;
     },
     (err) => {

@@ -9,7 +9,7 @@ import api from "../../utils/api";
 
 
 
-const ImageModal = ()=>{
+const ImageModal = ({timer})=>{
     const [image, setImage] = useState("")
     const [file, setFile] = useState<any>(null)
     const [result, setResult] = useState<any>(null)
@@ -19,7 +19,7 @@ const ImageModal = ()=>{
     const [show, setShow] = useState("")
     const [agree, setAgree] = useState(false)
     const confirm = useConfirm()
-    const {user, setUser} = useLogin()
+    const {user, isTokenRefreshing, setUser} = useLogin()
     const handleFileChange = (event) => {
         console.log(event.target.files)
 
@@ -92,9 +92,7 @@ const ImageModal = ()=>{
 
     const calculateDays = (amount : number, transactionFee : number)=>{
         if(!amount) return 0;
-
-        return Math.floor((amount - (transactionFee || 0)) / 150)
-
+        return Math.floor((amount - (transactionFee || 0)) / timer?.Rate)
     }
 
     const onUploadClicked = async ()=>{
@@ -143,7 +141,7 @@ const ImageModal = ()=>{
                                 </TableRow>
                                 <TableRow>
                                     <TableCell><Typography variant="body1"><b>Rate:</b> </Typography></TableCell>
-                                    <TableCell> 150.00 / day</TableCell>
+                                    <TableCell> {numeral(timer?.Rate).format("0,0.00")} / day</TableCell>
                                 </TableRow>
                                 <TableRow>
                                     <TableCell><Typography variant="body1"><b># of days:</b> </Typography></TableCell>
@@ -186,12 +184,15 @@ const ImageModal = ()=>{
         <Button
             component="label" // Important: Makes the button act as a label for the input
             variant="contained"
+            disabled={isTokenRefreshing}
             startIcon={<CloudUpload />} 
             onClick={()=>onUploadClicked()}
             >
             Upload Payment proof
         </Button>
-        <Typography variant='body2'><b>Current Rate: </b> PHP 150.00 per day</Typography>
+        <Typography variant='body2'><b>Current Rate: </b> 
+         {!timer ? <Skeleton variant="text" width="7rem" sx={{display:"inline-flex"}}></Skeleton> : `PHP ${numeral(timer?.Rate).format("0,0.00")} per day`}
+         </Typography>
     </Box>
     </>
 

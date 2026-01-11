@@ -7,7 +7,16 @@ import moment from "moment";
 import { getTokenViaRefreshToken } from "../utils/api";
 
 
-export const AuthContext = createContext<{user:UserInfo, setUserInfo:React.Dispatch<React.SetStateAction<UserInfo>>}>({
+interface AuthContextModel {
+    user:UserInfo, 
+    setUserInfo:React.Dispatch<React.SetStateAction<UserInfo>>,
+    isRefreshing:boolean
+}
+
+export let setRefreshing = ()=>{}
+
+
+export const AuthContext = createContext<AuthContextModel>({
     user:{
     isAuthenticated: false,
     name: "",
@@ -15,7 +24,10 @@ export const AuthContext = createContext<{user:UserInfo, setUserInfo:React.Dispa
     picture: "",
     sub: "",
     role: ""
-}, setUserInfo:()=>{}})
+}, 
+setUserInfo:()=>{}, 
+setRefreshing:()=>{},
+isTokenRefreshing: false})
 
 export interface UserInfo {
     isAuthenticated: boolean;
@@ -40,10 +52,12 @@ export const AuthContextProvider = ({children})=>{
         isLoggedIn:()=>false,
         role: ""
     })
+    const [isRefreshing, setRefreshingInternal] = useState(false)
     const [initialized, setInitialized] = useState(false)
     const isLoggedIn = ()=>{
         let token = window.sessionStorage.getItem("access_token")
-        if( !token) return false;
+        let id_token = window.localStorage.getItem("id_token")
+        if(!token || !id_token) return false
         let tokenJson = JSON.parse(window.atob(token!.split(".")[1]));
         if (moment().add(1, "minute").isAfter(tokenJson.exp * 1000 )){
             return false;
@@ -53,13 +67,14 @@ export const AuthContextProvider = ({children})=>{
     useEffect(()=>{
         (async()=>{
             let token = await getTokenViaRefreshToken()
-            if(!token){
+            let id_token = window.localStorage.getItem("id_token")
+            if(!token || !id_token){
                 setInitialized(true)
                 
                 setUser({...user, isLoggedIn})
                 return
             }
-            const tokenJson = jwtDecode<JwtPayload & UserInfo>(token!)
+            const tokenJson = jwtDecode<JwtPayload & UserInfo>(id_token!)
             console.debug("tokenJson", moment(tokenJson.exp! * 1000).fromNow());
             if (moment().add(1, "minute").isAfter(tokenJson.exp! * 1000)){
                 console.log("token expired")
@@ -67,23 +82,24 @@ export const AuthContextProvider = ({children})=>{
                 setInitialized(true)
                 return
             }
+
             setUser({...tokenJson, isAuthenticated: true, isLoggedIn})
             setInitialized(true)
         })()
        
 
     },[])
-
+    setRefreshing = setRefreshingInternal;
     return !initialized ? <>Authenticating</> 
-    :<AuthContext.Provider value={{user, setUser}}>
+    :<AuthContext.Provider value={{user, setUser, setRefreshing:setRefreshingInternal, isTokenRefreshing:isRefreshing}}>
         {children}
     </AuthContext.Provider>
 }
 
 const useLogin = ()=>{
-    const {user, setUser} = useContext(AuthContext)
+    const {user, setUser, setRefreshing, isTokenRefreshing} = useContext(AuthContext)
 
-    return {user, setUser}
+    return {user, setUser,setRefreshing, isTokenRefreshing }
 }
 
 export default useLogin 
