@@ -1,11 +1,12 @@
 import {  CloudUpload } from "@mui/icons-material";
 import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, FormControlLabel, Grid, Paper, Skeleton, Table, TableBody, TableCell, TableContainer, TableRow, Typography } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import numeral from "numeral"
 import {useConfirm} from 'material-ui-confirm'
 import { anonApi } from "../../utils/apiOld";
 import useLogin from "../GoogleLoginWrapper";
 import api from "../../utils/api";
+import moment from "moment";
 
 
 
@@ -52,7 +53,7 @@ const ImageModal = ({timer})=>{
             }
         }).then(res=>{
             setResult(res.data)
-            setAgree(res.data.recipientBank.toLowerCase().indexOf("gcash") > -1)
+            setAgree((res.data.recipientBank||"").toLowerCase().indexOf("gcash") > -1)
         })
 
     }
@@ -94,6 +95,18 @@ const ImageModal = ({timer})=>{
         if(!amount) return 0;
         return Math.floor((amount - (transactionFee || 0)) / timer?.Rate)
     }
+
+    const computation = useMemo(()=>{
+        if(!result) return {days: null, endDate: null}
+        const days = calculateDays(result.amount, result.transactionFee)
+        const endDate = moment(timer.DisconnectTime).isBefore(moment()) ? "" : moment(timer.DisconnectTime).add(days, "days").format("MMM DD")
+
+        return {
+            days,
+            endDate
+        }
+
+    },[result, timer])
 
     const onUploadClicked = async ()=>{
         if(!user.isLoggedIn()){
@@ -145,7 +158,12 @@ const ImageModal = ({timer})=>{
                                 </TableRow>
                                 <TableRow>
                                     <TableCell><Typography variant="body1"><b># of days:</b> </Typography></TableCell>
-                                    <TableCell>{result ? calculateDays(result?.amount, result?.transactionFee) : <Skeleton variant="text" height="0.875rem" />} </TableCell>
+                                    <TableCell>{!!computation.days ? <>
+                                                <Typography variant="body1" component="span">{computation.days}</Typography>
+                                                {!!computation.endDate &&
+                                                    <Typography variant="body1"  component="span" sx={{color:"grey"}}> (until {computation.endDate})</Typography>
+                                                }
+                                            </>  : <Skeleton variant="text" height="0.875rem" />} </TableCell>
                                 </TableRow>
                                 {!result ? null : result.recipientBank.toLowerCase().indexOf("gcash") == -1 ? <TableRow>
                                     <TableCell padding="checkbox" colSpan={2}>

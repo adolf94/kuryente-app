@@ -7,7 +7,7 @@ from azure.identity import DefaultAzureCredential
 from azure.cosmos import CosmosClient
 from dateutil.relativedelta import relativedelta
 import pytz
-
+from dateutil import parser
 from deps.util import date_diff_with_tz
 
 tz_default = pytz.timezone(os.environ["TIMEZONE"])
@@ -302,8 +302,6 @@ def compute_daily():
 
 
     difference = date_diff_with_tz(prev_balance["id"], pytz.utc, last_timer["DisconnectTime"], tz_default)
-
-    days_to_pay = 30 if difference < 0 else (30-difference)
 
     #should compute which is higher outstanding or current_daily * 30
                             

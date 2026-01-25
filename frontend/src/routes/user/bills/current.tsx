@@ -6,6 +6,7 @@ import numeral from 'numeral'
 import { useMemo } from 'react'
 import { ChevronLeft, ExpandMore } from '@mui/icons-material'
 import { useAllPayments } from '../../../repositories/repository'
+import StatusChip from '../../../components/index/admin/StatusChip'
 
 export const Route = createFileRoute('/user/bills/current')({
   component: RouteComponent,
@@ -17,11 +18,15 @@ function RouteComponent() {
     const {data: payments} = useAllPayments()
     const currentPayments =  useMemo<any>(()=>(payments || []).filter(e=>{
            return e.DateAdded > bill?.dateEnd
+        }).map((e)=>{
+          e.rate = e.rate  || (e.File.amount / e.File.days)
+          return e
         }),[payments])
 
 
     const paymentAfter = useMemo(()=>{
         return currentPayments.reduce((prev,cur)=>{
+            if(cur.Status != "Approved") return prev
             return prev + cur.File.amount
         },0)
     },[currentPayments,bill])
@@ -133,8 +138,9 @@ function RouteComponent() {
                     <TableBody>
                       {currentPayments.map(item=><TableRow key={item.id}>
                         <TableCell>{moment(item.DateAdded).format("MM/DD")}</TableCell>
-                        <TableCell>{item.File.recipientBank} <br /> {item.PaymentBy?.name || item.PaymentBy?.email} </TableCell>
-                        <TableCell>{numeral(item.Rate).format("0.00")}</TableCell>
+                        <TableCell>{item.File.recipientBank} 
+                    <StatusChip value={item.Status} size="small" /> {item.PaymentBy?.name || item.PaymentBy?.email} </TableCell>
+                        <TableCell>{numeral(item.rate).format("0.00")}</TableCell>
                         <TableCell sx={{textAlign:"right"}}>{numeral(item.File.amount).format("0,0.00")}</TableCell>
                       </TableRow>)}
                       <TableRow>

@@ -48,7 +48,7 @@ export const usePaymentMutation = ()=>{
               })
         },
         onSuccess:(data)=>{
-            queryClient.setQueryData([PAYMENT], (prev)=>[...prev, data])
+            queryClient.setQueryData([PAYMENT], (prev)=>[...prev, data.payment])
         }
     })
 

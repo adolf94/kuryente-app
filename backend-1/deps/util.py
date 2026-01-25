@@ -18,7 +18,7 @@ def get_disconnect_time_for_disconnected():
 def get_disconnect_time(last_date):
     if_disconnected = get_disconnect_time_for_disconnected()
 
-    if(if_disconnected > last_date):
+    if(if_disconnected < last_date):
         if_disconnected = last_date
 
     return if_disconnected
