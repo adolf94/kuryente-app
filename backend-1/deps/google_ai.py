@@ -129,7 +129,7 @@ def extract_bill_info(localpath):
     except Exception as e:
         logging.error(e)
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-3-flash-preview",
             contents=[pdf_part, prompt],
             config=config
         )

@@ -2,7 +2,7 @@
 import datetime
 import logging
 import os
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient,generate_blob_sas,BlobSasPermissions
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient,generate_blob_sas,BlobSasPermissions,ContentSettings
 from azure.identity import DefaultAzureCredential
 
 
@@ -10,7 +10,7 @@ from azure.identity import DefaultAzureCredential
 account_url = os.getenv("BLOB_SCREENSHOT_UPLOAD", "")  # e.g., "https://mydatalake.blob.core.windows.net"
 connection_string = os.getenv("BLOB_CONNECTION_STRING", "")  # e.g., "https://mydatalake.blob.core.windows.net"
 
-def upload_to_azure(file_path, blob_name, container="transact-screenshots"):
+def upload_to_azure(file_path, blob_name, mime, container="transact-screenshots"):
     """
     Uploads a file to Azure Blob Storage.
     Handles both connection string and Azure Identity authentication.
@@ -35,9 +35,10 @@ def upload_to_azure(file_path, blob_name, container="transact-screenshots"):
         blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
         logging.info("using default Credential")
         
+    content_settings = ContentSettings(content_type=mime)
     blob_client = blob_service_client.get_blob_client(container=container, blob=blob_name)
     with open(file_path, "rb") as data:
-        blob_client.upload_blob(data, overwrite=True)  # Overwrite if it exists
+        blob_client.upload_blob(data, overwrite=True,content_settings=content_settings)  # Overwrite if it exists
 
 
     return {

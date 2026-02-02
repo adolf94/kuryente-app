@@ -1,10 +1,12 @@
-import { Box, Button, Card, CardActions, CardContent, CardHeader, Grid, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
+import { Box, Button, Card, CardActions, CardContent, CardHeader, Grid, IconButton, List, ListItem, ListItemButton, ListItemText, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import useBillComputation from '../../../utils/useBillComputation'
 import moment from 'moment'
 import numeral from 'numeral'
-import { useMemo } from 'react'
-import { ChevronLeft, ExpandMore } from '@mui/icons-material'
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronLeft, ExpandMore, Visibility } from '@mui/icons-material'
+import api from '../../../utils/api'
+import ViewMasterBillDialog from '../../../components/index/user/ViewMasterBillDialog'
 
 export const Route = createFileRoute('/user/bills/$billId')({
   component: RouteComponent,
@@ -14,6 +16,17 @@ function RouteComponent() {
     const { billId } = Route.useParams()
     const router = useRouter()
     const {result:bill,isLoading } = useBillComputation(moment(billId))
+
+    const [master, setMaster] = useState([])
+
+    useEffect(()=>{
+
+      api.get(`/masterbills/${billId}`)
+        .then(e=>{
+          setMaster(e.data)
+        })
+
+    },[billId])
 
 
     const readings = useMemo(()=>{
@@ -76,7 +89,7 @@ function RouteComponent() {
         <Grid container size={12}>
           <Grid size={{xs:12,sm:6,md:4}} sx={{p:1}}>
             <Typography variant='h6'>Bill Summary</Typography>
-            <Card>
+            <Card sx={{pb:2}}>
               <CardContent>
                 <Table size='small'>
                   <TableBody>
@@ -127,6 +140,13 @@ function RouteComponent() {
                   </TableBody>
                 </Table>
               </CardContent>
+            </Card>
+            <Typography variant='h6'>Master Bill</Typography>
+            <Card>
+              
+              <List>
+                {master.map(e=><ViewMasterBillDialog item={e} />)}
+              </List>
             </Card>
           </Grid>
           <Grid container size={{xs:12,sm:6,md:4}} >

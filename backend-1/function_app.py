@@ -10,7 +10,7 @@ import pytz
 from deps.google_auth import verify_custom_jwt
 from deps.tuya import get_status, save_status_checkpoint, switch_device
 from deps.textbee_sms import send_sms
-from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, compute_daily, create_monthly_bill, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container, get_reading_by_date
+from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, compute_daily, create_monthly_bill, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container, get_masterbills_by_billdate, get_reading_by_date
 from deps.google_ai import extract_bill_info, identify_img_transact_ai
 from deps.azure_blob import get_file, upload_to_azure
 from werkzeug.utils import secure_filename
@@ -66,7 +66,7 @@ def upload_proof(req: func.HttpRequest) -> func.HttpResponse:
     fileId = id.replace("-","")
     fileType = originalFileName.split(".",1)[-1]
     blob_name = fileId + "." + fileType
-    fileData = upload_to_azure(local_file_path, blob_name)
+    fileData = upload_to_azure(local_file_path, blob_name, mime=file.mimetype)
 
 
 
@@ -205,7 +205,7 @@ def upload_bill(req: func.HttpRequest) -> func.HttpResponse:
     ai_output = extract_bill_info(local_file_path)
     blob_name = ai_output["filename"]
 
-    fileData = upload_to_azure(local_file_path, blob_name, "bills")
+    fileData = upload_to_azure(local_file_path, blob_name, mime=file.mimetype, container="bills")
 
     
 
@@ -507,6 +507,20 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
 
     return func.HttpResponse(
         json.dumps(cached_files[body["fileId"]]), mimetype="application/json", status_code=200)
+
+
+@app.route(route="masterbills/{date}", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
+def get_master_bills(req:func.HttpRequest) -> func.HttpResponse:
+    
+
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    if(user == None):
+        return func.HttpResponse(status_code=401)
+    
+    date = req.route_params.get("date")
+
+    result = get_masterbills_by_billdate(date)
+    return func.HttpResponse(json.dumps(result), status_code=200,mimetype="application/json" )
 
 
 

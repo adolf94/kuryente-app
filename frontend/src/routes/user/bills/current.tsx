@@ -1,12 +1,14 @@
-import { Alert, Box, Button, Card, CardActions, CardContent, CardHeader, Grid, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardActions, CardContent, CardHeader, Grid, List, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Typography } from '@mui/material'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import useBillComputation from '../../../utils/useBillComputation'
 import moment from 'moment'
 import numeral from 'numeral'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ExpandMore } from '@mui/icons-material'
 import { useAllPayments } from '../../../repositories/repository'
 import StatusChip from '../../../components/index/admin/StatusChip'
+import api from '../../../utils/api'
+import ViewMasterBillDialog from '../../../components/index/user/ViewMasterBillDialog'
 
 export const Route = createFileRoute('/user/bills/current')({
   component: RouteComponent,
@@ -16,6 +18,8 @@ function RouteComponent() {
     const router = useRouter()
     const {result:bill,isLoading } = useBillComputation(moment().set("D",1))
     const {data: payments} = useAllPayments()
+    const [master, setMaster] = useState([])
+
     const currentPayments =  useMemo<any>(()=>(payments || []).filter(e=>{
            return e.DateAdded > bill?.dateEnd
         }).map((e)=>{
@@ -30,6 +34,14 @@ function RouteComponent() {
             return prev + cur.File.amount
         },0)
     },[currentPayments,bill])
+    useEffect(()=>{
+
+      api.get(`/masterbills/${moment().add(1,'month').format("YYYY-MM-01")}`)
+        .then(e=>{
+          setMaster(e.data)
+        })
+
+    },[])
 
 
     const readings = []
@@ -107,8 +119,15 @@ function RouteComponent() {
           <Grid container size={{xs:12,sm:6,md:4}} >
         <Grid size={12} sx={{px:1,pt:1}}>
           <Typography variant='h5'>Readings</Typography>
-          <Alert color='warning'>No Readings yet. Will be done on the first day of the next month</Alert>
-            
+          <Alert color='warning' sx= {{pb:2}}>No Readings yet. Will be done on the first day of the next month</Alert>
+          
+            <Typography variant='h6'>Master Bill</Typography>
+            <Card>
+              {master.length == 0 && <Alert sx={{m:2}} color='warning'>No Master bill yet</Alert>}
+              <List>
+                {master.map(e=><ViewMasterBillDialog item={e} />)}
+              </List>
+            </Card>  
         </Grid>
           </Grid>
           <Grid container size={{xs:12,sm:6,md:4}} sx={{display:'block',justifyContent:"center"}}>

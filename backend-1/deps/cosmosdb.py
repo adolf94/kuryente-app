@@ -65,6 +65,24 @@ def get_all_container(container):
     items = container.query_items("select * from c  order by c._ts desc", enable_cross_partition_query=True)
     return list(items)
 
+def get_masterbills_by_billdate(date):
+    end_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+    start_date = end_date - relativedelta(months=1)
+
+    start_str = start_date.strftime("%Y-%m-%d")
+    yr = start_date.year
+    db = get_db()
+    container = db.get_container_client("MasterBills")
+    result = container.query_items("""
+            select * from c where c.bill_date >= @start and c.bill_date <= @end and c.year=@yr
+        """,  parameters=[
+                {"name":"@start", "value":start_str},
+                {"name":"@end", "value":date},
+                {"name":"@yr", "value": yr}], 
+            partition_key=yr)
+    return list(result)
+
+
 
 def get_item_by_id(container, id):
     db = get_db()
