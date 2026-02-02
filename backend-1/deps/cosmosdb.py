@@ -278,14 +278,18 @@ def create_monthly_bill(date):
     return current_bill
 
 
-def compute_daily():
+def compute_daily(prev_balance = None):
     #get previous balance
     db = get_db()
-    container = db.get_container_client("Bills")
-    items = container.query_items("""select top 1 * from c
-                                    order by c.dateEnd Desc                                  
-                                  """, partition_key="default")
-    prev_balance = next(items, None)
+    if(prev_balance == None):
+        container = db.get_container_client("Bills")
+        items = container.query_items("""select top 1 * from c
+                                        order by c.dateEnd Desc                                  
+                                    """, partition_key="default")
+        prev_balance = next(items, None)
+
+
+
     use_for_compute = prev_balance["current"]
     outstanding = prev_balance["balance"]
     current = prev_balance["current"]

@@ -86,6 +86,11 @@ const ImageModal = ({timer})=>{
             }
             setShow("")
             confirm(data)
+        }).catch(ex=>{
+            confirm({
+                content:"Something went wrong. Kindly send via FB / Messenger",
+                hideCancelButton:true
+            })
         })
     }
 

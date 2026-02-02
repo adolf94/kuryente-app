@@ -1,6 +1,6 @@
 import { CancelOutlined, CheckCircle, CheckCircleOutline, Image, ArrowDropDown } from '@mui/icons-material'
-import { Box, Button, Card, CardContent, CardHeader, Chip, Grid, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material'
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { Box, Button, Card, CardContent, CardHeader, Chip, CircularProgress, Dialog, DialogContent, Grid, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import StatusChip from '../../components/index/admin/StatusChip'
 import { useEffect, useState } from 'react'
 import api from '../../utils/api'
@@ -24,7 +24,7 @@ export const Route = createFileRoute('/admin/')({
 
 function RouteComponent() {
   const confirm = useConfirm()
-
+  const navigate = useNavigate()
   const {data : readings} = useQuery({
     queryFn:()=>getAllReadings(),
     queryKey:[READING],
@@ -39,7 +39,8 @@ function RouteComponent() {
       placeholderData:[]
   })
   const {decide_admin} = usePaymentMutation()
-
+  const [billDate, setBillDate] = useState(moment().format("YYYY-MM-01"))
+  const [isLoading, setLoading] = useState(false)
 
 
   const decide = (index : int, decision : any)=>{
@@ -69,10 +70,19 @@ function RouteComponent() {
 
   }
 
+  const generateBill = ()=>{
+    setLoading(true)
+    api.get(`/create_bill`, {params:{date:billDate}})
+      .then(e=>{
+        navigate({to:`/user/bills/${billDate}`})
+        setLoading(false)
+      })
+
+  }
 
   return <>
     <Grid container>
-      <Grid size={{xs:12,md:6}} sx={{p:1}}>
+      <Grid size={{xs:12,md:5}} sx={{p:1}}>
         <Card>
           <CardContent>
             <Box sx={{display:"flex", justifyContent:"space-between"}}>
@@ -174,7 +184,7 @@ function RouteComponent() {
         </Card>
       </Grid>
 
-      <Grid size={{xs:12,md:6}} sx={{p:1}}>
+      <Grid size={{xs:12,md:7}} sx={{p:1}}>
         <Card>
           <CardHeader>
             <Typography variant='h6'>
@@ -182,13 +192,34 @@ function RouteComponent() {
             </Typography>
           </CardHeader>
           <CardContent>
-            
-          <AddReadingDialog onAdded={()=>{}}  data={readings} allowedTypes={["Manila Water", "Meralco"]} admin>
-              <Button>Add Reading</Button>
-            </AddReadingDialog>
-            <AddMasterBillDialog>
-              <Button>Add Master Bill</Button>
-            </AddMasterBillDialog>
+            <Grid container sx={{justifyContent:"space-between"}}>
+              <Grid>
+                  <AddReadingDialog onAdded={()=>{}}  data={readings} allowedTypes={["Manila Water", "Meralco"]} admin>
+                    <Button>Add Reading</Button>
+                  </AddReadingDialog>
+                  <AddMasterBillDialog>
+                    <Button>Add Master Bill</Button>
+                  </AddMasterBillDialog>
+              </Grid>
+              <Grid>
+                <TextField type="date" size="small" variant='standard' slotProps={{ input: {disableUnderline: true }}}
+                  value={billDate} onChange={(evt)=>setBillDate(evt.target.value)}
+                />
+                <Dialog open={isLoading} slotProps={{
+                    paper:{
+                        sx: {
+                            backgroundColor: 'transparent',
+                            boxShadow: 'none',
+                        },
+                    }
+                  }}>
+                    <DialogContent>
+                        <CircularProgress size={100}/>
+                    </DialogContent>
+                </Dialog>
+                <Button onClick={generateBill}> Generate Bill</Button>
+              </Grid>
+            </Grid>
             <TableContainer>
               <Table>
                 <TableHead>

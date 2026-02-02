@@ -334,6 +334,12 @@ def readings(req: func.HttpRequest) -> func.HttpResponse:
 def create_bill(req:func.HttpRequest) -> func.HttpResponse:
     date = req.params.get('date')
     bill = create_monthly_bill(date)
+
+    latest_timer = get_latest_from_container("TimerDetails")
+    new_daily = compute_daily(bill)
+    latest_timer["Rate"] = new_daily
+    add_to_app("TimerDetails",latest_timer)
+
     return func.HttpResponse(json.dumps(bill),mimetype="application/json",  status_code=200)
 
 
@@ -353,11 +359,9 @@ def add_reading(req: func.HttpRequest) -> func.HttpResponse:
     body["PartitionKey"] = "default"
 
     if(body["reading"] is not None and body["reading"] > 0):
-        if(body["consumption"] is not None and before is not None):
+        if(body["consumption"] is not None and before is not None and before["reading"] != 0):
             prev = int(before["reading"])
             body["consumption"] = int(body["reading"]) - prev
-        else:
-            body["consumption"] = int(body["reading"])
     add_to_app("Readings", body)
     
     if(after is not None):
