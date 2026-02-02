@@ -12,6 +12,7 @@ import ViewImageDialog from '../../components/index/admin/ViewImageDialog'
 import AddReadingDialog from '../../components/index/admin/AddReadingDialog'
 import { useQuery } from '@tanstack/react-query'
 import { getAllReadings, getPayments, PAYMENT, READING, usePaymentMutation } from '../../repositories/repository'
+import AddMasterBillDialog from '../../components/index/admin/AddMasterBillDialog'
 
 export const Route = createFileRoute('/admin/')({
   component: RouteComponent,
@@ -184,8 +185,10 @@ function RouteComponent() {
             
           <AddReadingDialog onAdded={()=>{}}  data={readings} allowedTypes={["Manila Water", "Meralco"]} admin>
               <Button>Add Reading</Button>
-
             </AddReadingDialog>
+            <AddMasterBillDialog>
+              <Button>Add Master Bill</Button>
+            </AddMasterBillDialog>
             <TableContainer>
               <Table>
                 <TableHead>

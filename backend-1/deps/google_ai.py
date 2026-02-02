@@ -36,7 +36,7 @@ def identify_img_transact_ai(localpath, file_record):
         - description : string - description for the transaction, include a summary, recipient name for the transaction. Be more concise on the text. Make it at least 60 characters.
         - sourceFilename : string - the filename of the image used.
         - reference : string - the reference number that can be used in later time. for record purposes
-        - datetime : datetime- the date and time the transaction was executed in the format of "YYYY-MM-DDTHH:mm:ssZ". Convert from GMT +8:00 if it was not provided
+        - datetime : datetime- the date and time the transaction was executed in the format of  "YYYY-MM-DDTHH:mm:ssZ" in UTC. If the timezone is not found in the screenshot, convert it from GMT +8:00 to UTC.
         - senderAcct  : string - (source account) the account used to send / pay as mentioned in the screenshot
         - senderBank  : string - (source bank) the bank of the account used to send / pay as mentioned in the screenshot
         - senderName  : string - the name or nickname used to send / pay as mentioned in the screenshot
@@ -76,4 +76,63 @@ def identify_img_transact_ai(localpath, file_record):
 
     output = json.loads(response.text)
     
+    return output
+
+
+def extract_bill_info(localpath):
+    prompt = """
+        I have uploaded a PDF of my utility bill: 
+
+        Extract the following information and return as a JSON text: 
+
+        ``````````````````````````````
+        type: str - either "Manila Water" (Water) or "Meralco" (Electricity) - use the work in quotes
+        billing_start: date - The period start date of the scope of the bill
+        billing_end: date - The period end date of the scope of the bill
+        bill_date: date - The bill date
+        year: int - the year in while the bill is dated
+        previous_reading : int - the previous reading of the meter
+        current_reading : int - the current reading of the meter
+        consumption: int - the consumption (current_reading - previous_reading)
+        prev_balance: decimal - The previous unpaid bill
+        current : decimal - The current charges for the bill
+        price_per_unit : decimal - the price per unit (current / consumption) 
+        payments : decimal - The total payments recorded
+        total_balance : decimal - the total balance  (prev_balance - payments + current)
+        filename: string - create a filename for this file : \{type\}_\{bill_date in YYYYMMDD\}.pdf
+        ``````````````````````````````
+
+    """
+
+        # 1. Read the PDF file as bytes
+    with open(localpath, "rb") as f:
+        pdf_data = f.read()
+
+    # 2. Wrap it in a Part object (or pass as a dict) with the correct MIME type
+    pdf_part =types.Part.from_bytes(
+        data=pdf_data,
+        mime_type="application/pdf"
+    )
+
+    config = types.GenerateContentConfig(
+        response_mime_type="application/json"
+    )
+
+    try:
+        # Use pdf_part instead of the image object
+        
+        response = client.models.generate_content(model="gemini-2.5-flash",
+                                            contents=[pdf_part, prompt],
+                                            config=config
+                                            )
+
+    except Exception as e:
+        logging.error(e)
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=[pdf_part, prompt],
+            config=config
+        )
+
+    output = json.loads(response.text)
     return output

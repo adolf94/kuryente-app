@@ -22,8 +22,6 @@ const ImageModal = ({timer})=>{
     const confirm = useConfirm()
     const {user, isTokenRefreshing, setUser} = useLogin()
     const handleFileChange = (event) => {
-        console.log(event.target.files)
-
                 
         if (event.target.files && event.target.files[0]) {
             setImage(URL.createObjectURL(event.target.files[0]));
@@ -64,7 +62,7 @@ const ImageModal = ({timer})=>{
         api.post("/confirm_payment", {
             fileId: result.fileId
         }).then(res=>{
-            if(res.data.status == "Approved"){
+            if(res.data.data.Status == "Approved"){
                 var data = {
                     title: "Approved",
                     variant: "success",
@@ -109,6 +107,8 @@ const ImageModal = ({timer})=>{
     },[result, timer])
 
     const onUploadClicked = async ()=>{
+        
+        fileRef.current!.value = ""
         if(!user.isLoggedIn()){
             await api.get("/get_timer_info")
         }

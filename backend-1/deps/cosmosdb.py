@@ -105,7 +105,7 @@ def check_notifs_gcash(data):
     container = db.get_container_client("HookMessages")
 
     datebefore = utcstr_to_datetime(data["datetime"]) - datetime.timedelta(minutes=10)
-    dateafter = utcstr_to_datetime(data["datetime"]) - datetime.timedelta(minutes=10)
+    dateafter = utcstr_to_datetime(data["datetime"]) + datetime.timedelta(minutes=10)
 
 
     strBefore = datebefore.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -117,17 +117,16 @@ def check_notifs_gcash(data):
             select * from c where c.JsonData.notif_pkg = 'com.globe.gcash.android'
             and c.JsonData.timestamp > @strBefore
             and c.JsonData.timestamp < @strAfter
-            and c.PartitionKey = @partition
+            and c.MonthKey = @partition
         """, parameters = [
-            {"name":"strBefore", "value":strBefore},
-            {"name":"strAfter", "value":strAfter},
-            {"name":"partition", "value":partition}
+            {"name":"@strBefore", "value":strBefore},
+            {"name":"@strAfter", "value":strAfter},
+            {"name":"@partition", "value":partition}
         ], partition_key=partition)
-    
 
     def filter_fn(row):
         if float(row["ExtractedData"]["amount"]) != float(data["amount"]): return False
-        if row["ExtractedData"]["matchedConfig"] == "gcash_receive": 
+        if row["ExtractedData"]["matchedConfig"] == "notif_gcash_receive": 
             return True
         
         if row["ExtractedData"]["matchedConfig"] == "notif_gcash_instapay" \

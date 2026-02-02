@@ -9,9 +9,8 @@ from azure.identity import DefaultAzureCredential
 
 account_url = os.getenv("BLOB_SCREENSHOT_UPLOAD", "")  # e.g., "https://mydatalake.blob.core.windows.net"
 connection_string = os.getenv("BLOB_CONNECTION_STRING", "")  # e.g., "https://mydatalake.blob.core.windows.net"
-container_name = "transact-screenshots" # Replace with your container name
 
-def upload_to_azure(file_path, blob_name):
+def upload_to_azure(file_path, blob_name, container="transact-screenshots"):
     """
     Uploads a file to Azure Blob Storage.
     Handles both connection string and Azure Identity authentication.
@@ -36,7 +35,7 @@ def upload_to_azure(file_path, blob_name):
         blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
         logging.info("using default Credential")
         
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+    blob_client = blob_service_client.get_blob_client(container=container, blob=blob_name)
     with open(file_path, "rb") as data:
         blob_client.upload_blob(data, overwrite=True)  # Overwrite if it exists
 
@@ -64,7 +63,7 @@ def get_file(record):
         # Generate the SAS token
         sas_token = generate_blob_sas(
             account_name=blob_service_client.account_name,
-            container_name=container_name,
+            container_name=record["Container"],
             blob_name=record["FileKey"],
             account_key=account_key,
             permission=blob_permissions,

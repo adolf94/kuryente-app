@@ -11,8 +11,8 @@ from deps.google_auth import verify_custom_jwt
 from deps.tuya import get_status, save_status_checkpoint, switch_device
 from deps.textbee_sms import send_sms
 from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, compute_daily, create_monthly_bill, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container, get_reading_by_date
-from deps.google_ai import identify_img_transact_ai
-from deps.azure_blob import get_file, upload_to_azure,container_name
+from deps.google_ai import extract_bill_info, identify_img_transact_ai
+from deps.azure_blob import get_file, upload_to_azure
 from werkzeug.utils import secure_filename
 from uuid_extensions import uuid7, uuid7str
 
@@ -38,9 +38,8 @@ def allowed_file(filename):
 def health(req: func.HttpRequest) -> func.HttpResponse:
 
     return func.HttpResponse("ok", status_code=200)
-@app.route(route="upload_proof", auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="upload_proof", auth_level=func.AuthLevel.ANONYMOUS, methods=[func.HttpMethod.POST])
 def upload_proof(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Python HTTP trigger function processed a request.')
     #TODO : restrict filetype, filesize
 
     user = verify_custom_jwt(req.headers.get("Authorization"))
@@ -73,7 +72,7 @@ def upload_proof(req: func.HttpRequest) -> func.HttpResponse:
 
     record = {
         "id":id,
-        "Container": container_name,
+        "Container": 'transact-screenshots',
         "PartitionKey":"default",
         "Service": "blob",
         "OriginalFileName":originalFileName,
@@ -173,7 +172,69 @@ def record_payment(req: func.HttpRequest) -> func.HttpResponse:
         "payment": new_item
     }), mimetype="application/json", status_code=200)
 
-@app.route(route="decide_payment", auth_level=func.AuthLevel.ANONYMOUS)
+
+@app.route(route="upload_bill", auth_level=func.AuthLevel.ANONYMOUS,  methods=[func.HttpMethod.POST])
+def upload_bill(req: func.HttpRequest) -> func.HttpResponse:
+    #TODO : restrict filetype, filesize
+
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    if(user == None):
+        return func.HttpResponse(status_code=401)
+
+    if("KURYENTE_ADMIN" not in user["role"] ):
+        return func.HttpResponse("", status_code=403)
+    
+    print(req.files["file"])
+    file = req.files["file"]
+    originalFileName = secure_filename(file.filename)
+    if('.' not in originalFileName or  originalFileName.rsplit('.', 1)[1].lower() != "pdf"):
+            return func.HttpResponse(
+                 json.dumps({
+                "error": True,
+                "message": "not allowed"
+            }), mimetype="application/json", status_code=400)
+
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    local_file_path = temp_file.name
+
+    file.save(local_file_path)
+
+    logging.info("file saved ")
+    id = uuid7( as_type='str')
+    fileType = originalFileName.split(".",1)[-1]
+    ai_output = extract_bill_info(local_file_path)
+    blob_name = ai_output["filename"]
+
+    fileData = upload_to_azure(local_file_path, blob_name, "bills")
+
+    
+
+    record = {
+        "id":id,
+        "Container": "bills",
+        "PartitionKey":"default",
+        "Service": "blob",
+        "OriginalFileName":originalFileName,
+        "MimeType": file.mimetype ,
+        "FileKey": blob_name,
+        "Lines": [],
+        "$type": "BlobFile",
+        "App":"ai",
+        "DateCreated": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "Status":"Active"
+    }
+    add_to_finance("Files", record)
+
+
+    ai_output["file_id"] = id
+    ai_output["id"] = f"{ai_output["year"]}|{id}"
+    add_to_app("MasterBills", ai_output)
+
+    
+    return func.HttpResponse(json.dumps(ai_output), mimetype="application/json",status_code=200)
+
+
+@app.route(route="decide_payment", auth_level=func.AuthLevel.ANONYMOUS, methods=["POST"])
 def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
 
     #validations
@@ -364,8 +425,8 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
     else:
         result = check_notifs_gcash(ai_data)
         current_timer = get_latest_from_container("TimerDetails")
-
-        count = len(list(result))
+        result = list(result)
+        count = len(result)
         new_data = None
         if(count == 1):
             id = uuid7str()
@@ -375,7 +436,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
                 "File": ai_data,
                 "PaymentBy": added_by,
                 "DateAdded": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "notif": next(result),
+                "notif": result[0],
                 "Days":ai_data["days"],
                 "Status": "Approved",
                 "PartitionKey":"default"
@@ -386,7 +447,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
             last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
             days_to_add = math.floor(float(ai_data["amount"]) / current_timer["Rate"])
 
-            new_disconnect_time = get_disconnect_time(last_disconnect_time) + datetime.timedelta(days=days_to_add)
+            new_disconnect_time = get_disconnect_time(pytz.utc.localize(last_disconnect_time)) + datetime.timedelta(days=days_to_add)
             
             new_daily = compute_daily()
             new_data = {
