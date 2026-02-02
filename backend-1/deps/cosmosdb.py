@@ -304,11 +304,8 @@ def compute_daily():
 
     #should compute which is higher outstanding or current_daily * 30
                             
-    
-
-
     if(current > outstanding):
-        use_for_compute = (outstanding  + current) / 2 #if mas malaki ung current sa outstanding divide by 2 nalang
+        use_for_compute = current #if mas malaki ung current sa outstanding divide by 2 nalang
     elif outstanding > (current * 1.05) :
         use_for_compute = current * 1.05
     else:

@@ -258,6 +258,8 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
         current_timer = get_latest_from_container("TimerDetails")
         last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
         days_to_add = math.floor(float(item["File"]["amount"]) / current_timer["Rate"])
+        days_to_add = math.floor((float(item["File"]["amount"]) + current_timer.get("Excess",0)) / current_timer["Rate"])
+        excess_amount = float(item["File"]["amount"]) - (current_timer["Rate"] * days_to_add)
         new_disconnect_time = get_disconnect_time(pytz.utc.localize(last_disconnect_time)) + datetime.timedelta(days=days_to_add)
         new_daily = compute_daily()
         new_data = {
@@ -265,6 +267,7 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
             "PartitionKey": "default",
             "DisconnectTime": new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "PaymentId": item["id"],
+            "Excess":excess_amount,
             "Rate": new_daily
         }
         switch_device(True)
@@ -445,8 +448,8 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
 
 
             last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
-            days_to_add = math.floor(float(ai_data["amount"]) / current_timer["Rate"])
-
+            days_to_add = math.floor((float(ai_data["amount"]) + current_timer.get("Excess",0)) / current_timer["Rate"])
+            excess_amount = float(ai_data["amount"]) - (current_timer["Rate"] * days_to_add)
             new_disconnect_time = get_disconnect_time(pytz.utc.localize(last_disconnect_time)) + datetime.timedelta(days=days_to_add)
             
             new_daily = compute_daily()
@@ -455,6 +458,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
                 "PartitionKey": "default",
                 "DisconnectTime": new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "PaymentId": data["id"],
+                "Excess": excess_amount,
                 "Rate": new_daily
             }
             switch_device(True)

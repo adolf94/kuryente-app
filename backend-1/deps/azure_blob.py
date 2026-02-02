@@ -85,14 +85,14 @@ def get_file(record):
         account_name = blob_service_client.account_name
         sas_token = generate_blob_sas(
             account_name=blob_service_client.account_name,
-            container_name=container_name,
+            container_name=record["Container"],
             blob_name=record["FileKey"],
             user_delegation_key=user_delegation_key,
             permission=blob_permissions,
             expiry=sas_expiry
         )
     endpoint = "http://127.0.0.1:10000/devstoreaccount1" if account_name == "devstoreaccount1" else f"https://{account_name}.blob.core.windows.net"
-    container_sas_url = f"{endpoint}/{container_name}/{record["FileKey"]}?{sas_token}"
+    container_sas_url = f"{endpoint}/{record["Container"]}/{record["FileKey"]}?{sas_token}"
     return container_sas_url
 
 
