@@ -1,8 +1,12 @@
 
 
-import datetime
+from datetime import datetime
+from functools import wraps
+import json
+import logging
 import math
 import os
+import traceback
 from azure.identity import DefaultAzureCredential
 from azure.cosmos import CosmosClient
 from dateutil.relativedelta import relativedelta
@@ -17,8 +21,32 @@ if "COSMOS_KEY" in os.environ and os.environ["COSMOS_KEY"] != "":
 else:
     credential = DefaultAzureCredential()
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+def debug_tool(func):
+    """Decorator to log tool inputs and outputs for troubleshooting."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        func_name = func.__name__
+        logger.info(f">>> TOOL CALL START: {func_name}")
+        logger.info(f">>> ARGUMENTS: args={args}, kwargs={kwargs}")
+        try:
+            result = func(*args, **kwargs)
+            # Log a snippet of the result to see if it's empty or malformed
+            res_str = str(result)[:500] + "..." if len(str(result)) > 500 else str(result)
+            logger.info(f">>> TOOL RESULT SUCCESS: {res_str}")
+            return result
+        except Exception as e:
+            logger.error(f">>> TOOL ERROR in {func_name}: {str(e)}")
+            logger.error(traceback.format_exc())
+            return {"error": f"Internal tool error in {func_name}", "details": str(e)}
+    return wrapper
+
+
 def datestr_to_utcstr(date):
-    naive_dt = datetime.datetime.strptime(date, "%Y-%m-%d")
+    naive_dt = datetime.strptime(date, "%Y-%m-%d")
     utc_aware_dt = tz_default.localize(naive_dt)
     utc_dt = utc_aware_dt.astimezone(pytz.utc)
     utc_string = utc_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -30,14 +58,14 @@ def  utcstr_to_datetime(str):
 
     try:
             # It's a UTC timestamp
-            naive_dt = datetime.datetime.strptime(str, "%Y-%m-%dT%H:%M:%SZ")
+            naive_dt = datetime.strptime(str, "%Y-%m-%dT%H:%M:%SZ")
             utc_aware_dt = pytz.utc.localize(naive_dt)
             return utc_aware_dt
             # It's a non-UTC timestamp
     except ValueError:
         # Catch any malformed strings that don't match either format
         
-        return pytz.utc.localize(datetime.datetime(datetime.UTC))
+        return pytz.utc.localize(datetime(datetime.UTC))
 
 
 def get_db(name = os.environ["COSMOS_DB"]):
@@ -53,6 +81,7 @@ def get_latest_from_container(container : str):
     return item
 
 
+
 def add_to_app(container, record):
     db = get_db()
     container = db.get_container_client(container)
@@ -66,7 +95,7 @@ def get_all_container(container):
     return list(items)
 
 def get_masterbills_by_billdate(date):
-    end_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+    end_date = datetime.strptime(date, "%Y-%m-%d")
     start_date = end_date - relativedelta(months=1)
 
     start_str = start_date.strftime("%Y-%m-%d")
@@ -168,7 +197,7 @@ def create_monthly_bill(date):
                                   """, parameters=[{"name":"@date", "value":date}], partition_key="default")
     prev_balance = next(items, None)
     
-    date_obj = datetime.datetime.strptime(date, "%Y-%m-%d")
+    date_obj = datetime.strptime(date, "%Y-%m-%d")
     current_start = date_obj + relativedelta(months = -1)
     current_end = current_start + relativedelta(months = 1) - datetime.timedelta(days=1)
 
@@ -236,9 +265,9 @@ def create_monthly_bill(date):
         if shouldEstimate: 
             current = sorted([item for item in readings if item["type"] == key], key = lambda item: item["date"]    )
            
-            prior_read_date = datetime.datetime.strptime( prior_reading[key]["date"], "%Y-%m-%d")
-            first_read_date = datetime.datetime.strptime( current[0]["date"], "%Y-%m-%d")
-            prev_bill_date = datetime.datetime.strptime( prev_balance["dateEnd"]["date"], "%Y-%m-%d")
+            prior_read_date = datetime.strptime( prior_reading[key]["date"], "%Y-%m-%d")
+            first_read_date = datetime.strptime( current[0]["date"], "%Y-%m-%d")
+            prev_bill_date = datetime.strptime( prev_balance["dateEnd"]["date"], "%Y-%m-%d")
             reading_diff: datetime.timedelta = first_read_date - prior_read_date
             reading_diff = reading_diff.days
             bill_diff: datetime.timedelta =  prev_bill_date - first_read_date
@@ -336,6 +365,92 @@ def compute_daily(prev_balance = None):
     daily = math.ceil(use_for_compute / 300) * 10
     
     return daily
+
+@debug_tool
+def get_readings(date : str, month_count:int = 1):
+    db = get_db()
+    container = db.get_container_client("Readings")
+
+    new_date = datetime.strptime(date, "%Y-%m-%d") - relativedelta(months=month_count)
+    date_str = new_date.strftime("%Y-%m-%d")
+    items = container.query_items("""select * from c
+                                where c.date >= @date and c.date < @end_date
+                            """,parameters=[
+                                    {"name":"@end_date", "value":date},
+                                    {"name":"@date", "value":date_str},
+                                    ], partition_key="default")
+    result = list(items)
+    output = []
+    for item in result:
+        key_map = ["date","type","reading", "consumption","per_unit"]
+        new_output = {old_k: item[old_k] for old_k in key_map if old_k in item}
+        new_output["cost"] = new_output["consumption"] * new_output["per_unit"]
+        output.append(new_output)
     
+    return output
+
+@debug_tool
+def get_master_bills(date: str,  month_count:int = 1):
+    db = get_db()
+    container = db.get_container_client("MasterBills")
+
+    curr_year = datetime.strptime(date, "%Y-%m-%d").year
+    new_date = datetime.strptime(date, "%Y-%m-%d") - relativedelta(months=month_count)
+
+    addtl_param = {"partition_key": new_date.year } if curr_year == new_date.year else {"enable_cross_partition_query":True}
+
+    date_str = new_date.strftime("%Y-%m-%d")
+    items = container.query_items("""select * from c
+                                where c.bill_date >= @date and c.bill_date < @end_date
+                            """,parameters=[
+                                    {"name":"@end_date", "value":date},
+                                    {"name":"@date", "value":date_str},
+                                    ], **addtl_param)
+    result = list(items)
+    output = []
+
+    for item in result:
+        key_map = ["type","billing_start","billing_end","previous_reading", "current_reading","consumption","prev_balance","current","price_per_unit","payments", "total_balance", "file_id"]
+        new_output = {old_k: item[old_k] for old_k in key_map if old_k in item}
+        output.append(new_output)
+
+    return output
+
+@debug_tool
+def get_latest_timer():
+    item = get_latest_from_container("TimerDetails")
+    key_map = ["DisconnectTime", "PaymentId", "Rate"]
+    output = {old_k: item[old_k] for old_k in key_map if old_k in item}
+    return output
 
 
+@debug_tool
+def get_complete_bill(date : str):
+    logging.info("GET_COMPLETE BILL WAS TRIGGERED")
+
+
+    db = get_db()
+    container = db.get_container_client("Bills")
+    items = container.query_items("""select top 1 * from c
+                                  where c.id=@date
+                                """,parameters=[
+                                        {"name":"@date", "value":date},
+                                      ], partition_key="default")
+    result = next(items)
+    key_map = {"id":"date", "dateStart":'dateStart', "dateEnd":"dateEnd", "current": "current", "payments":"payments","previous":"previous", "balance":"balance","daily_rate":"daily_rate"}
+    bill = {new_k: result[old_k] for old_k, new_k in key_map.items() if old_k in result}
+
+    readings = get_readings(date, 1)
+
+    master_bills = get_master_bills(date,1)
+    logging.info(json.dumps({
+                "readings":readings,
+                "bill":bill,
+                "master_bills":master_bills 
+            }
+        ))
+    return {
+        "readings":readings,
+        "bill":bill,
+        "master_bills":master_bills 
+    }

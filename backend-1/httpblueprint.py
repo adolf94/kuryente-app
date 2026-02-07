@@ -141,4 +141,3 @@ def google_auth(req: func.HttpRequest) -> func.HttpResponse:
         mimetype="application/json"
     )
         
-

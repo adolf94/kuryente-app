@@ -67,7 +67,6 @@ export const getAllReadings = ()=>{
     return api.get<any[]>("/readings")
       .then(e=>{
         let sortedData = e.data.sort((a,b)=> a.date > b.date ? -1 : 1)
-        console.log(sortedData)
         let data = e.data.reduce((p,c)=>{
             let prev = sortedData.find(e=>e.date < c.date && e.type == c.type)
             if(!!prev){

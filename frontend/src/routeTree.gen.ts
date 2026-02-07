@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UserRouteImport } from './routes/user'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UserIndexRouteImport } from './routes/user/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
@@ -18,15 +19,20 @@ import { Route as UserBillsIndexRouteImport } from './routes/user/bills/index'
 import { Route as UserBillsCurrentRouteImport } from './routes/user/bills/current'
 import { Route as UserBillsBillIdRouteImport } from './routes/user/bills/$billId'
 
+const UserRoute = UserRouteImport.update({
+  id: '/user',
+  path: '/user',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UserIndexRoute = UserIndexRouteImport.update({
-  id: '/user/',
-  path: '/user/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => UserRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
@@ -44,27 +50,28 @@ const ErrorsDeniedRoute = ErrorsDeniedRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const UserBillsIndexRoute = UserBillsIndexRouteImport.update({
-  id: '/user/bills/',
-  path: '/user/bills/',
-  getParentRoute: () => rootRouteImport,
+  id: '/bills/',
+  path: '/bills/',
+  getParentRoute: () => UserRoute,
 } as any)
 const UserBillsCurrentRoute = UserBillsCurrentRouteImport.update({
-  id: '/user/bills/current',
-  path: '/user/bills/current',
-  getParentRoute: () => rootRouteImport,
+  id: '/bills/current',
+  path: '/bills/current',
+  getParentRoute: () => UserRoute,
 } as any)
 const UserBillsBillIdRoute = UserBillsBillIdRouteImport.update({
-  id: '/user/bills/$billId',
-  path: '/user/bills/$billId',
-  getParentRoute: () => rootRouteImport,
+  id: '/bills/$billId',
+  path: '/bills/$billId',
+  getParentRoute: () => UserRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/user': typeof UserRouteWithChildren
   '/errors/denied': typeof ErrorsDeniedRoute
   '/errors/down': typeof ErrorsDownRoute
   '/admin': typeof AdminIndexRoute
-  '/user': typeof UserIndexRoute
+  '/user/': typeof UserIndexRoute
   '/user/bills/$billId': typeof UserBillsBillIdRoute
   '/user/bills/current': typeof UserBillsCurrentRoute
   '/user/bills': typeof UserBillsIndexRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/user': typeof UserRouteWithChildren
   '/errors/denied': typeof ErrorsDeniedRoute
   '/errors/down': typeof ErrorsDownRoute
   '/admin/': typeof AdminIndexRoute
@@ -94,10 +102,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/user'
     | '/errors/denied'
     | '/errors/down'
     | '/admin'
-    | '/user'
+    | '/user/'
     | '/user/bills/$billId'
     | '/user/bills/current'
     | '/user/bills'
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/user'
     | '/errors/denied'
     | '/errors/down'
     | '/admin/'
@@ -125,17 +135,21 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  UserRoute: typeof UserRouteWithChildren
   ErrorsDeniedRoute: typeof ErrorsDeniedRoute
   ErrorsDownRoute: typeof ErrorsDownRoute
   AdminIndexRoute: typeof AdminIndexRoute
-  UserIndexRoute: typeof UserIndexRoute
-  UserBillsBillIdRoute: typeof UserBillsBillIdRoute
-  UserBillsCurrentRoute: typeof UserBillsCurrentRoute
-  UserBillsIndexRoute: typeof UserBillsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/user': {
+      id: '/user'
+      path: '/user'
+      fullPath: '/user'
+      preLoaderRoute: typeof UserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -145,10 +159,10 @@ declare module '@tanstack/react-router' {
     }
     '/user/': {
       id: '/user/'
-      path: '/user'
-      fullPath: '/user'
+      path: '/'
+      fullPath: '/user/'
       preLoaderRoute: typeof UserIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof UserRoute
     }
     '/admin/': {
       id: '/admin/'
@@ -173,37 +187,50 @@ declare module '@tanstack/react-router' {
     }
     '/user/bills/': {
       id: '/user/bills/'
-      path: '/user/bills'
+      path: '/bills'
       fullPath: '/user/bills'
       preLoaderRoute: typeof UserBillsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof UserRoute
     }
     '/user/bills/current': {
       id: '/user/bills/current'
-      path: '/user/bills/current'
+      path: '/bills/current'
       fullPath: '/user/bills/current'
       preLoaderRoute: typeof UserBillsCurrentRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof UserRoute
     }
     '/user/bills/$billId': {
       id: '/user/bills/$billId'
-      path: '/user/bills/$billId'
+      path: '/bills/$billId'
       fullPath: '/user/bills/$billId'
       preLoaderRoute: typeof UserBillsBillIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof UserRoute
     }
   }
 }
 
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  ErrorsDeniedRoute: ErrorsDeniedRoute,
-  ErrorsDownRoute: ErrorsDownRoute,
-  AdminIndexRoute: AdminIndexRoute,
+interface UserRouteChildren {
+  UserIndexRoute: typeof UserIndexRoute
+  UserBillsBillIdRoute: typeof UserBillsBillIdRoute
+  UserBillsCurrentRoute: typeof UserBillsCurrentRoute
+  UserBillsIndexRoute: typeof UserBillsIndexRoute
+}
+
+const UserRouteChildren: UserRouteChildren = {
   UserIndexRoute: UserIndexRoute,
   UserBillsBillIdRoute: UserBillsBillIdRoute,
   UserBillsCurrentRoute: UserBillsCurrentRoute,
   UserBillsIndexRoute: UserBillsIndexRoute,
+}
+
+const UserRouteWithChildren = UserRoute._addFileChildren(UserRouteChildren)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  UserRoute: UserRouteWithChildren,
+  ErrorsDeniedRoute: ErrorsDeniedRoute,
+  ErrorsDownRoute: ErrorsDownRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

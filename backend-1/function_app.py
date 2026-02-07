@@ -8,9 +8,10 @@ import logging
 
 import pytz
 from deps.google_auth import verify_custom_jwt
+from deps.support_chat_ai import SupportChatManager
 from deps.tuya import get_status, save_status_checkpoint, switch_device
 from deps.textbee_sms import send_sms
-from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, compute_daily, create_monthly_bill, get_all_container, get_file_by_id, get_item_by_id, get_latest_from_container, get_masterbills_by_billdate, get_reading_by_date
+from deps.cosmosdb import add_to_app, add_to_finance, check_notifs_gcash, compute_daily, create_monthly_bill, get_all_container, get_complete_bill, get_file_by_id, get_item_by_id, get_latest_from_container, get_masterbills_by_billdate, get_reading_by_date
 from deps.google_ai import extract_bill_info, identify_img_transact_ai
 from deps.azure_blob import get_file, upload_to_azure
 from werkzeug.utils import secure_filename
@@ -522,6 +523,38 @@ def get_master_bills(req:func.HttpRequest) -> func.HttpResponse:
     result = get_masterbills_by_billdate(date)
     return func.HttpResponse(json.dumps(result), status_code=200,mimetype="application/json" )
 
+
+
+@app.route(route="support_ai/chat", auth_level=func.AuthLevel.ANONYMOUS, methods=[func.HttpMethod.POST])
+def chat_with_ai(req:func.HttpRequest) -> func.HttpResponse:
+
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    if(user == None):
+        return func.HttpResponse(status_code=401)
+    
+    body = req.get_json()
+
+    chat_id = body.get("chat_id", "")
+
+    chat_client = SupportChatManager(user["userId"])
+
+    message = body.get("message", "")
+    if(message == ""): return func.HttpResponse(status_code=400)
+    response, new_id = chat_client.chat(message, chat_id)
+    
+    output = {
+        "response": response,
+        "chat_id": new_id
+    }
+    return func.HttpResponse(json.dumps(output), status_code=200,mimetype="application/json" )
+    
+
+@app.route(route="support_ai/get_bill", auth_level=func.AuthLevel.ANONYMOUS, methods=[func.HttpMethod.POST])
+def test_call(req:func.HttpRequest) -> func.HttpResponse:
+
+    output = get_complete_bill("2025-12-01")
+
+    return func.HttpResponse(json.dumps(output), status_code=200,mimetype="application/json" )
 
 
 @app.timer_trigger(schedule="0 5 6 * * *", arg_name="myTimer", run_on_startup=False,

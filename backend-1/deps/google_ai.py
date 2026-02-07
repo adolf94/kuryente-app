@@ -1,12 +1,13 @@
 import logging
 import os
+from typing import Any, List, Optional
 from google import genai
 from google.genai import types
 from PIL import Image
 import json
 
 
-client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
+client = genai.Client(api_key=os.environ['GEMINI_API_KEY'], vertexai=True)
 
 def identify_img_transact_ai(localpath, file_record):
 
@@ -136,3 +137,16 @@ def extract_bill_info(localpath):
 
     output = json.loads(response.text)
     return output
+
+
+
+# --- COSMOS DB DATA ARCHITECTURE EXAMPLE ---
+"""
+Recommended Cosmos DB Document Schema:
+{
+    "id": "session_12345",
+    "partitionKey": "user_987",
+    "last_updated": "2023-10-27T10:00:00Z",
+    "chat_history": [ ...serialized history items... ]
+}
+"""
