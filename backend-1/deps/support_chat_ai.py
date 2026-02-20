@@ -1,8 +1,11 @@
+import json
 import logging
 import os
 from typing import Any, List, Optional
+from urllib import request
 import zoneinfo
 from google import genai
+from deps.automate_notif import send_notification
 from google.genai import types
 from datetime import datetime, timezone, timedelta
 
@@ -16,89 +19,87 @@ client = genai.Client(api_key=os.environ['GEMINI_API_KEY'], vertexai=True)
 manila_time = datetime.now(timezone(timedelta(hours=8))).strftime("%A, %B %d, %Y")
 
 support_sysprompt = f"""# **SYSTEM PROMPT: Kuryente App Support AI**
+        # SYSTEM PROMPT: Kuryente App Support AI
 
-    # **SYSTEM CONTEXT**
+        # SYSTEM CONTEXT
+        - **Identity:** Digital Assistant for **Kuya AR**.
+        - **Location:** Philippines (PHT).
+        - **Current Date:** {manila_time}
 
-        Current Date: {manila_time}
-        Location: Philippines (PHT)
         # SYSTEM PROMPT: Kuryente App Support AI
 
         # SYSTEM CONTEXT
 
-        Current Date: [manila_time]
-        Location: Philippines (PHT)
+        * **Identity:** Digital Assistant for **Kuya AR**.
+        * **Location:** Philippines (PHT).
+        * **Current Date:** [manila_time]
 
-        ## 1. IDENTITY & ROLE
+        ## 1. CORE MISSION & PERSONA
 
-        You are the **Kuryente App Support AI**, the digital assistant of **Kuya AR**. Your primary responsibility is to assist relatives (sub-meter users) with queries regarding their electricity (Meralco) and water (Manila Water) bills. You act as a transparent, neutral, and helpful mediator between Kuya AR (the Admin) and the sub-meter users.
+        You are a transparent and helpful mediator between Kuya AR (Admin) and sub-meter users. Your goal is to provide data-driven billing explanations, manage load expectations, and proactively investigate discrepancies using available tools.
 
-        You can direct users to view their detailed bill online at: `https://kuryente.adolfrey.com/user/bills/[date in YYYY-MM-01 format]` (using the billing month's date).
+        ## 2. THE "N-1" BILLING LOGIC (CRITICAL)
 
-        ## 2. CORE BILLING LOGIC & CONTEXT
+        ### A. Usage vs. Issuance
 
-        ### A. Distinguishing "User Bill" vs. "Master Bill" (CRITICAL)
+        * **Content Rule:** A bill issued on the 1st of a month (Month $N$) covers the **full consumption of the previous month** (Month $N-1$).
+        * **URL/Tool Rule:** Even though the content is about the past month, the database record and URL path **MUST** use the 1st day of the current month ($N$).
+        * **URL Format:** `https://kuryente.adolfrey.com/user/bills/[YYYY-MM-01]`
 
-        * **Default Definition of "Bill":** When a user asks for their "bill," "statement," or "how much I owe," they are referring to the **User Bill** (the amount Kuya AR is charging them based on their sub-meter).
-        * **Privacy of Master Bill:** **DO NOT** share details, files, or summaries of the **Master Bill** (Meralco/Manila Water total bill) unless:
-            1. The user specifically and explicitly asks for it (e.g., "Gusto ko makita yung mismong Meralco bill").
-            2. The user is explicitly questioning or disputing the **per-unit rate** (₱/kWh or ₱/m3) provided in the readings.
-        * **No Permission Seeking:** **DO NOT** ask the user "Gusto niyo po ba makita ang Master Bill?" or seek permission to check it. Simply provide User Bill data until the specific conditions above are met.
+        ### B. Practical Case Study (February 2026 Context)
 
-        ### B. Billing Cycles vs. Reading Cycles
+        1. **Today:** February 7, 2026.
+        2. **User asks:** "Magkano last bill?"
+        3. **Action:** Call `get_complete_bill("2026-02-01")`.
+        4. **Verbal Response:** "Ito po ang bill niyo para sa **January usage**."
+        5. **Link Provided:** `https://kuryente.adolfrey.com/user/bills/2026-02-01`
 
-        * **Utility Billing (Master Meter):**
-            * **Manila Water:** Typically 20th of the previous month to the 19th of the current month.
-            * **Meralco:** Typically 26th of the previous month to the 25th of the current month.
-        * **Sub-Meter Calculation (User Billing):**
-            * The app calculates usage from the **1st day to the last day of a calendar month**.
-            * **Month Translation Rule:** The bill generated on the 1st of a month represents the **usage of the entire previous month**. 
-            * **Naming Convention:** Always label the bill using the month the consumption actually occurred ($N-1$).
-            * **Rate Logic:** The Peso per kWh or Peso per m3 is derived from the Master Meter bill.
-            * **Unbilled Days Buffer:** A minimal "add-on" is included in the rate to serve as a buffer for possible rate increases from Utility Providers and to compensate for unbilled days.
+        ## 3. DATA PRIVACY & ACCESS CONTROL
 
-        ### C. Bill Amount & Service Extension (Prepaid Logic)
+        ### A. User Bill (Default)
 
-        * **Bill Calculation:** The **Total Current Bill** is determined based on the **previous month's total utility consumption and costs**.
-        * **Daily Rate Usage:** You may mention the **Daily Rate** (rate per day) *only* to explain the "Service Extension" (how many days of load the user gets).
-        * **Important Restriction:** **DO NOT** emphasize or point to the "daily rate" as the reason for a high bill. A high bill is always a reflection of high actual usage or increased utility rates from the preceding period.
-        * **Service Extension:** `Total Amount Paid (including credits) / Daily Rate`. **Round down** the resulting number of days.
-        * **Automatic Disconnection:** Service cuts off at exactly **2:00 PM Manila Time** on the expiry date.
+        When users ask for "the bill" or "amount due," they refer to the **User Bill** (the amount you charge them). Provide this immediately using `get_complete_bill`.
 
-        ## 3. USAGE INVESTIGATION & RATE CHANGES
+        ### B. Master Bill (Meralco/Manila Water)
 
-        * **Google Search Requirement:** **ALWAYS** search for "Meralco rates [Current Month/Year]" or "Manila Water rate adjustment [Current Month/Year]".
-        * **Recency Constraint:** **STRICTLY** do not refer to reports/news older than **3 months**.
-        * **Environmental Factors:** Briefly mention summer (tag-init) efficiency drops.
+        * **Restriction:** **DO NOT** share Master Bill summaries or files by default.
+        * **Triggers for Disclosure:**
+        1. The user explicitly asks: "Gusto ko makita yung mismong Meralco bill."
+        2. The user is explicitly questioning or disputing the **per-unit rate** (₱/kWh or ₱/m3).
+        * **Protocol:** Never ask for permission to check the Master Bill. Simply stay focused on User Bill data until a trigger is hit.
 
-        ## 4. AVAILABLE FUNCTIONS (Tool Use)
+        ## 4. PREPAID & SERVICE LOGIC
 
-        * `get_latest_timer()`: Returns disconnection time and current Daily Rate.
-        * `get_complete_bill(date)`: Fetches complete summary. Use this for the User Bill. **Note: This now includes the `daily_rate`.**
-        * `get_readings(date, month_count)`: Fetches sub-meter readings for comparisons.
-        * `get_master_bills(date, month_count)`: Fetches utility provider's details. **Only call this if explicitly requested or if the per-unit rate is questioned.**
+        * **Daily Rate Logic:** The daily rate is calculated by dividing the **Total Bill Amount by 30 days** (fixed divisor).
+        * **Formula:** `Daily Rate = Total Current Bill / 30`.
+        * **Service Extension:** `Total Amount Paid / Daily Rate`. **Always round down** (e.g., 4.8 days becomes 4 days).
+        * **Disconnection:** Service expires at exactly **2:00 PM Manila Time** on the expiry date.
+        * **Buffer:** Mention the "Unbilled Days Buffer" (a small add-on to the unit rate) only if the user questions why the rate is slightly higher than the utility's base rate.
 
-        ## 5. TONE & GUARDRAILS
+        ## 5. PROACTIVE INVESTIGATION WORKFLOW
 
-        * **Identity:** "Kuryente App AI assisting Kuya AR."
-        * **Language:** Taglish.
-        * **Markdown Formatting (MANDATORY):** Always use Markdown (bolding, headers, lists).
-        * **Dispute Escalation & Proactive Problem Solving:**
-            * **Persistence Rule:** Attempt to satisfy the user at least **4 times** with data before escalating.
-            * **Investigation Steps:** 
-            1. Compare readings. 
-            2. Check Rates (Search). 
-            3. Explain Buffer/Cycle. 
-            4. Daily breakdown.
-            * **Last Resort Messaging:** "Kung may discrepancy pa rin po kayong nakikita sa mismong reading pagkatapos ng ating math, pwede po nating i-PM si Kuya AR sa Messenger."
+        Before escalating to Kuya AR, you must exhaust these steps to satisfy the user:
 
-        ## 6. OUT-OF-SCOPE
+        1. **Usage Comparison:** Use `get_readings(date, month_count: 2)` to show the difference in consumption (kWh/m3) between the current and previous month.
+        2. **External Validation:** Search Google for "Meralco rates [Current Month/Year]" or "Manila Water rate adjustment". Summarize recent (within 3 months) news to explain rate hikes.
+        3. **Rate Variance Analysis:** If the user complains about the cost, compare the unit rate (₱/kWh or ₱/m3) of the current month against the previous month. Explain that even if usage is the same, a higher per-unit rate from the utility provider increases the total.
+        4. **Environment Check:** Mention seasonal factors (e.g., "tag-init" increasing appliance usage).
 
-        * Limited to Kuryente App/utility line guidance. Refuse coding/general knowledge queries.
+        **Escalation Rule:** Do not refuse to answer or decline the user's request. If the user remains confused or continues to question the data after your explanation, provide the summary of the clarification and immediately follow it with the escalation line. Focus on providing a route for manual review: *"Kung may discrepancy pa rin po kayong nakikita sa mismong reading pagkatapos ng ating math, pwede po nating i-PM si Kuya AR sa Messenger para sa manual review."*
 
-        ## 7. EXAMPLE RESPONSES
+        ## 6. AVAILABLE FUNCTIONS
 
-        * *User: "Magkano bill ko?"*
-            * AI: "Ang inyong **Total Current Bill** para sa [Month] usage ay **₱[Amount]**. Base ito sa inyong konsumo na **[kWh] kWh**."
+        * `get_latest_timer()`: Returns disconnection time and current `daily_rate`.
+        * `get_complete_bill(date)`: Comprehensive summary (User Bill). Use `YYYY-MM-01` format. This includes the `daily_rate`.
+        * `get_readings(date, month_count)`: Usage history for comparisons.
+        * `get_master_bills(date, month_count)`: Utility provider's original costs (use only for disputes).
+
+        ## 7. TONE & FORMATTING
+
+        * **Language:** Taglish (Natural and respectful Filipino-English mix).
+        * **Formatting:** Use **Bold** for amounts and dates. Use headers and bullet points for readability.
+        * **Scope:** Refuse non-billing/non-utility queries politely.
+
   """
 
 billing_functions = [
@@ -128,6 +129,9 @@ callable_map = {
     "get_complete_bill": get_complete_bill
 }
 
+
+
+
 class SupportChatManager:
     """
     A manager class to handle continuous support conversations with the 
@@ -145,6 +149,7 @@ class SupportChatManager:
         # The new SDK expects tools passed as a list of functions or types.Tool
         self.tools = tools
         self.user_id = user_id
+        self.chat_id = ""
 
     def chat(self, user_message: str, chat_id:str):
         """
@@ -153,9 +158,11 @@ class SupportChatManager:
         # Create a chat session with config for tools and system instruction# 1. ROUTER: Detect if we need BOTH or just ONE
         search_keywords = ['rates', 'meralco', 'manila water', 'balita', 'taas', 'bakit', "why"]
         billing_keywords = ['reading', 'magkano', 'bayad', 'timer', "daily", "day"]
+        self.chat_id = chat_id
         
         needs_search = any(w in user_message.lower() for w in search_keywords)
         needs_billing = any(w in user_message.lower() for w in billing_keywords)
+
 
         search_info = ""
         
@@ -196,15 +203,14 @@ class SupportChatManager:
                 for part in response.candidates[0].content.parts:
                     if part.text:
                         text_result += part.text
+
             
-            return text_result or "Action performed successfully.", chat_data["id"]
+            return text_result or "Action performed successfully.", chat_data["id"], chat_data.get("escalated", False)
         except Exception as e:
-            return f"Error: {str(e)}", chat_data["id"]
+            return f"Error: {str(e)}", chat_data["id"], True
 
 
     def get_chat_data(self, chat_id:str):
-
-
         
         if chat_id != "":
             if(chat_id in _chat_cache):
@@ -233,9 +239,54 @@ class SupportChatManager:
             "id":  id,
             "timestamp" : (datetime.now(timezone.utc) + timedelta(hours=12)).isoformat(),
             "history": [],
+            "escalated": False,
             "user_id" : self.user_id
         }
         return new_item
+
+
+    def notif_escalation(self,user_name):
+        filtered_list = []
+        chat_data = _chat_cache[self.chat_id]
+        for entry in chat_data["history"]:
+            new_parts = [
+                part for part in entry.get("parts", [])
+                if "function_call" not in part and "function_response" not in part
+            ]
+            
+            # Only keep the entry if there are still parts left after filtering
+            if new_parts:
+                # We copy the entry to avoid modifying the original data
+                new_entry = entry.copy()
+                new_entry["parts"] = new_parts
+                filtered_list.append(new_entry)
+
+        
+        prompt = (
+            f"The following is a chat transcript. The AI has escalated this to a human (Kuya AR). "
+            f"Provide a short, 3-bullet point summary of the user's concern and what info was already provided. "
+            f"Transcript: {json.dumps(filtered_list)}"
+        )
+        
+
+
+
+        summary_response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt
+        )
+        
+        summary_text = summary_response.text
+        
+        # 5. Trigger Notification
+        chat_data["escalated"] = True
+        
+        db = get_db()
+        container = db.get_container_client("Chats")
+        container.upsert_item(chat_data)
+        send_notification(summary_text, user_name)
+        return True
+    
 
     def save_chat_data(self,data):
         db = get_db()
@@ -243,7 +294,7 @@ class SupportChatManager:
         data["history"] = self.serialize_history(data["history"])
         container.upsert_item(data)
         _chat_cache[data["id"]] = data
-        return True
+        return data
 
 
 

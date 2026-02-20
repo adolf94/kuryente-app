@@ -116,7 +116,7 @@ const Index = ()=>{
             <Card>
                 <CardContent>
                     <Typography variant='h5'>Extend Electricity</Typography>
-                     <ImageModal timer={timer}/>
+                     <ImageModal timer={timer} onComplete={(data)=>setTimer(data.new_timer)}/>
 
                     <Typography variant="h6">Instructions:</Typography> 
                     <Typography variant="body1" sx={{pl:2}}>

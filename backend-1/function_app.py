@@ -7,6 +7,7 @@ import azure.functions as func
 import logging
 
 import pytz
+from deps.automate_notif import send_notification
 from deps.google_auth import verify_custom_jwt
 from deps.support_chat_ai import SupportChatManager
 from deps.tuya import get_status, save_status_checkpoint, switch_device
@@ -430,6 +431,12 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
 
 
         send_sms(os.environ["SMS_NUMBER"],f"ACTION REQUIRED: New payment ({ai_data["recipientBank"]}) from kuryente-app is in for review!---{id}")
+        output = {
+                "data": data,
+                "new_timer" : current_timer
+            }
+        return func.HttpResponse(json.dumps(output),mimetype="application/json",  status_code=200)
+
     else:
         result = check_notifs_gcash(ai_data)
         current_timer = get_latest_from_container("TimerDetails")
@@ -540,7 +547,11 @@ def chat_with_ai(req:func.HttpRequest) -> func.HttpResponse:
 
     message = body.get("message", "")
     if(message == ""): return func.HttpResponse(status_code=400)
-    response, new_id = chat_client.chat(message, chat_id)
+    response, new_id, escalated = chat_client.chat(message, chat_id)
+
+    if("i-PM si Kuya AR sa" in response and escalated == False):
+        chat_client.notif_escalation(user.get("name", user["userId"]))
+
     
     output = {
         "response": response,
@@ -548,14 +559,6 @@ def chat_with_ai(req:func.HttpRequest) -> func.HttpResponse:
     }
     return func.HttpResponse(json.dumps(output), status_code=200,mimetype="application/json" )
     
-
-@app.route(route="support_ai/get_bill", auth_level=func.AuthLevel.ANONYMOUS, methods=[func.HttpMethod.POST])
-def test_call(req:func.HttpRequest) -> func.HttpResponse:
-
-    output = get_complete_bill("2025-12-01")
-
-    return func.HttpResponse(json.dumps(output), status_code=200,mimetype="application/json" )
-
 
 @app.timer_trigger(schedule="0 5 6 * * *", arg_name="myTimer", run_on_startup=False,
               use_monitor=False)

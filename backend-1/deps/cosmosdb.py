@@ -307,8 +307,6 @@ def create_monthly_bill(date):
     payment_amount =  sum(item["File"]['amount'] for item in payments)
     current_amount = sum(item["consumption"] * item["per_unit"] for item in readings)
 
-    
-
 
     current_bill = {
         "id" :date,
@@ -321,6 +319,9 @@ def create_monthly_bill(date):
         "balance": prev_balance["balance"] - payment_amount + current_amount
     }        
 
+    
+    daily = compute_daily(current_bill)
+    current_bill["daily_rate"] =  daily
     add_to_app("Bills", current_bill)
     return current_bill
 
@@ -443,12 +444,6 @@ def get_complete_bill(date : str):
     readings = get_readings(date, 1)
 
     master_bills = get_master_bills(date,1)
-    logging.info(json.dumps({
-                "readings":readings,
-                "bill":bill,
-                "master_bills":master_bills 
-            }
-        ))
     return {
         "readings":readings,
         "bill":bill,

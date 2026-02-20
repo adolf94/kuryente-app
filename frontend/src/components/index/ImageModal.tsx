@@ -8,9 +8,12 @@ import useLogin from "../GoogleLoginWrapper";
 import api from "../../utils/api";
 import moment from "moment";
 
+interface ImageModalProps {
+    timer:any,
+    onComplete:(data:any)=>void
+}
 
-
-const ImageModal = ({timer})=>{
+const ImageModal = ({timer, onComplete = ()=>{}})=>{
     const [image, setImage] = useState("")
     const [file, setFile] = useState<any>(null)
     const [result, setResult] = useState<any>(null)
@@ -69,7 +72,7 @@ const ImageModal = ({timer})=>{
                     description: "Service should be reinstated in a few moments if it was disconnected"
                 }
             }else{
-                if(!res.data.reason){
+                if(!res.data?.data?.reason){
                     var data = {
                         title: "Pending",
                         variant: "warning",
@@ -86,6 +89,7 @@ const ImageModal = ({timer})=>{
             }
             setShow("")
             confirm(data)
+            onComplete(res.data)
         }).catch(ex=>{
             confirm({
                 content:"Something went wrong. Kindly send via FB / Messenger",
