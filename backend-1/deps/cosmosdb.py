@@ -304,7 +304,7 @@ def create_monthly_bill(date):
     #compute 
     #prev amount - payments + current = balance
 
-    payment_amount =  sum(item["File"]['amount'] for item in payments)
+    payment_amount =  sum(float(item["File"]['amount']) for item in payments)
     current_amount = sum(item["consumption"] * item["per_unit"] for item in readings)
 
 

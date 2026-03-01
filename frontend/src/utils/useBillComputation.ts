@@ -254,7 +254,7 @@ const useBillComputation = (date)=>{
           monthReadings.push(e)
         })
       let paymentAmount = monthPayments.reduce((p,c)=>{
-          p += c.File.amount
+          p += Number.parseFloat(c.File.amount)
           return p
         },0) 
       let currentAmount = monthReadings.reduce((p,c)=>{
