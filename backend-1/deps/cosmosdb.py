@@ -1,6 +1,6 @@
 
 
-from datetime import datetime
+from datetime import datetime,timedelta
 from functools import wraps
 import json
 import logging
@@ -151,8 +151,8 @@ def check_notifs_gcash(data):
     db = get_db(os.environ["FINANCE_DB"])
     container = db.get_container_client("HookMessages")
 
-    datebefore = utcstr_to_datetime(data["datetime"]) - datetime.timedelta(minutes=10)
-    dateafter = utcstr_to_datetime(data["datetime"]) + datetime.timedelta(minutes=10)
+    datebefore = utcstr_to_datetime(data["datetime"]) - timedelta(minutes=10)
+    dateafter = utcstr_to_datetime(data["datetime"]) + timedelta(minutes=10)
 
 
     strBefore = datebefore.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -199,14 +199,14 @@ def create_monthly_bill(date):
     
     date_obj = datetime.strptime(date, "%Y-%m-%d")
     current_start = date_obj + relativedelta(months = -1)
-    current_end = current_start + relativedelta(months = 1) - datetime.timedelta(days=1)
+    current_end = current_start + relativedelta(months = 1) - timedelta(days=1)
 
     current_start_str = current_start.strftime( "%Y-%m-%d")
     current_end_str = current_end.strftime("%Y-%m-%d")
 
     # prev_start_date = (current_start+ relativedelta(months=-1))
     # prev_start = prev_start_date.strftime("%Y-%m-%d")
-    # prev_end = prev_start_date + relativedelta(months = 1)- datetime.timedelta(days=1)
+    # prev_end = prev_start_date + relativedelta(months = 1)- timedelta(days=1)
     readings_tbl = db.get_container_client("Readings")
     readings = readings_tbl.query_items("""select * from c
                                     where c.date > @start and
@@ -268,9 +268,9 @@ def create_monthly_bill(date):
             prior_read_date = datetime.strptime( prior_reading[key]["date"], "%Y-%m-%d")
             first_read_date = datetime.strptime( current[0]["date"], "%Y-%m-%d")
             prev_bill_date = datetime.strptime( prev_balance["dateEnd"]["date"], "%Y-%m-%d")
-            reading_diff: datetime.timedelta = first_read_date - prior_read_date
+            reading_diff: timedelta = first_read_date - prior_read_date
             reading_diff = reading_diff.days
-            bill_diff: datetime.timedelta =  prev_bill_date - first_read_date
+            bill_diff: timedelta =  prev_bill_date - first_read_date
             bill_diff = bill_diff.days
 
             actual_usage = current[0]["consumption"] / reading_diff * bill_diff
@@ -289,9 +289,9 @@ def create_monthly_bill(date):
 
                     post_read_date = datetime.strptime( post_reading[key]["date"], "%Y-%m-%d")
                     last_read_date = datetime.strptime( current[0]["date"], "%Y-%m-%d")
-                    reading_diff: datetime.timedelta = post_read_date - last_read_date + 1 #+1 because the date includes the current date
+                    reading_diff: timedelta = post_read_date - last_read_date + 1 #+1 because the date includes the current date
                     reading_diff = reading_diff.days
-                    bill_diff: datetime.timedelta =  current_end - last_read_date + 1 # +1 because the date includes the current date
+                    bill_diff: timedelta =  current_end - last_read_date + 1 # +1 because the date includes the current date
                     bill_diff = bill_diff.days
 
                     actual_usage = current[0]["consumption"] / reading_diff * bill_diff
