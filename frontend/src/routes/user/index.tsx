@@ -1,18 +1,11 @@
-
-
-import { Add, AddCircle, Settings } from '@mui/icons-material'
-import { Alert, Box, Button, Card, CardActions, CardContent, CardHeader, Chip, Grid, Icon, IconButton, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Tooltip, Typography } from '@mui/material'
-import { createFileRoute, useCanGoBack, useNavigate } from '@tanstack/react-router'
+import { AddCircle } from '@mui/icons-material'
+import { Box, Button, Card, CardContent, CardHeader, Container, Grid, List, Paper, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, Typography } from '@mui/material'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import moment from 'moment'
-import StatusChip from '../../components/index/admin/StatusChip'
-import ViewImageDialog from '../../components/index/admin/ViewImageDialog'
-import { useEffect, useMemo, useState } from 'react'
-import api from '../../utils/api'
+import { useState } from 'react'
 import AddReadingIconButton from '../../components/index/user/AddReadingIconButton'
 import AddReadingDialog from '../../components/index/admin/AddReadingDialog'
-import numeral from 'numeral'
-import { useQuery } from '@tanstack/react-query'
-import { BILL, getAllReadings, getBills, getPayments, PAYMENT, READING, useAllBills, useAllPayments, useAllReading } from '../../repositories/repository'
+import { useAllBills, useAllPayments, useAllReading } from '../../repositories/repository'
 import BillCard, { LoadingBillCard, UnbilledBillCard } from '../../components/index/user/BillCard'
 import PaymentCard, { LoadingPaymentCard } from '../../components/index/user/PaymentCard'
 import ReadingRow, { LoadingReadingRow } from '../../components/index/user/ReadingRow'
@@ -23,135 +16,131 @@ const RouteComponent = ()=>{
 
     const {data: payments, isLoading : payLoading} = useAllPayments({unsetPlaceholder:true})
     const {data: readings, isLoading: readLoading} = useAllReading({unsetPlaceholder:true})
-    const{data:bills,isFetching, isLoading: billLoading} = useAllBills({unsetPlaceholder:true})
+    const {data: bills, isFetching, isLoading: billLoading} = useAllBills({unsetPlaceholder:true})
     const [type, setType] = useState("Manila Water")
 
+    return <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+            <Box>
+                <Typography variant="h4" fontWeight="700" color="text.primary" gutterBottom>
+                    Account Dashboard
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    Manage your bills, view usage history, and track payments.
+                </Typography>
+            </Box>
+            <Box display="flex" gap={2}>
+                <Button variant='outlined' color="primary" onClick={()=>navigate({to:"/"})}>Back to Home</Button>
+                <Button variant='contained' color="primary" onClick={()=>navigate({to:"/admin"})}>Admin Panel</Button>
+            </Box>
+        </Box>
 
-    return <Box sx={{width:"100%"}}>
-        <Grid container>
-            
-            <Grid size={{xs:12, md:12}} sx={{p:1}}>
-                <Typography variant='h5'>Bill Summary </Typography>
-                <Grid container>
-                    
-                    { billLoading ? <>
-                    <Grid size={{xs:12,sm:6,md:3}} sx={{p:1}}>
-                        <LoadingBillCard />
-                    </Grid>
-                    <Grid size={{xs:12,sm:6,md:3}} sx={{p:1}}>
-                        <LoadingBillCard />
-                    </Grid>
-                    <Grid size={{xs:12,sm:6,md:3}} sx={{p:1}}>
-                        <LoadingBillCard />
-                    </Grid>
-                    <Grid size={{xs:12,sm:6,md:3}} sx={{p:1}}>
-                        <LoadingBillCard />
-                    </Grid>
-                    </>:<>
-                        {
-                            moment().date() > 7 && 
-                            <Grid size={{xs:12,sm:6,md:3}} sx={{p:1}}>
-                                {payLoading  ? <LoadingBillCard />: <UnbilledBillCard payments={payments}/>}
-                            </Grid>
-                        }
-                        {
-                            bills.sort((a,b)=>a.id<b.id?1:-1)
-                        .slice(0,moment().date() > 7?3:4)
-                        .map(e=><Grid key={e.id} size={{xs:12,sm:6,md:3}} sx={{p:1}}>
-                            <BillCard item={e} date={e.id}/>
-                            </Grid>)
-                        }
-                    </>}
-                    <Grid size={12} sx={{textAlign:'right'}}>
-                        <Button onClick={()=>navigate({to:"./bills"})}>View all bills</Button>
-                    </Grid>
+        <Box mb={5}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant='h6' fontWeight="600">Bill Summary</Typography>
+                <Button onClick={()=>navigate({to:"./bills"})} sx={{ fontWeight: 600 }}>View Complete History</Button>
+            </Box>
+            <Grid container spacing={3}>
+                { billLoading ? <>
+                <Grid size={{xs:12,sm:6,md:3}}>
+                    <LoadingBillCard />
                 </Grid>
-            </Grid>
-            <Grid size={{xs:12, md:6}} sx={{p:1}}>
-
-                <Card>
-                    <CardHeader title="Readings" action={<AddReadingDialog admin={false} data={readings || []} allowedTypes={["Manila Water"]} onAdded={()=>{}} >
-                        <AddReadingIconButton />
-                    </AddReadingDialog>} /> 
-                    <CardContent>
-                        <Grid container>
-                            <Tabs value={type} onChange={(e,newValue)=>{console.log(e)
-
-                                setType(newValue)
-                            }}>
-                                <Tab label={<Typography fontSize="small">Manila Water</Typography>} value="Manila Water"></Tab>
-                                <Tab label={<Typography fontSize="small">Meralco</Typography>} value="Meralco"></Tab>
-                            </Tabs>
-                            
-                            <Table>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>
-                                            Date
-                                        </TableCell>
-                                        <TableCell>
-                                            Reading
-                                        </TableCell>
-                                        <TableCell>
-                                            Usage
-                                        </TableCell>
-                                        <TableCell>
-                                            Cost
-                                        </TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {
-                                        readLoading ? <>
-                                            <LoadingReadingRow />
-                                            <LoadingReadingRow />
-                                            <LoadingReadingRow />
-                                            <LoadingReadingRow />
-                                            <LoadingReadingRow />
-                                            <LoadingReadingRow />
-                                        </> :
-                                        readings.filter(e=>e.type == type)
-                                            .sort((a,b)=>a.date > b.date ? -1:1)
-                                            .slice(0,10)
-                                            .map(e=><ReadingRow reading={e} />)
-                                    }
-                                </TableBody>
-                            </Table>
+                <Grid size={{xs:12,sm:6,md:3}}>
+                    <LoadingBillCard />
+                </Grid>
+                <Grid size={{xs:12,sm:6,md:3}}>
+                    <LoadingBillCard />
+                </Grid>
+                <Grid size={{xs:12,sm:6,md:3}}>
+                    <LoadingBillCard />
+                </Grid>
+                </>:<>
+                    {
+                        moment().date() > 7 && 
+                        <Grid size={{xs:12,sm:6,md:3}}>
+                            {payLoading ? <LoadingBillCard /> : <UnbilledBillCard payments={payments}/>}
                         </Grid>
+                    }
+                    {
+                        bills.sort((a:any, b:any)=>a.id < b.id ? 1 : -1)
+                        .slice(0, moment().date() > 7 ? 3 : 4)
+                        .map((e:any) => (
+                            <Grid key={e.id} size={{xs:12,sm:6,md:3}}>
+                                <BillCard item={e} date={e.id}/>
+                            </Grid>
+                        ))
+                    }
+                </>}
+            </Grid>
+        </Box>
+
+        <Grid container spacing={4}>
+            {/* Readings Table */}
+            <Grid size={{xs:12, md:6}}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardHeader 
+                        title={<Typography variant="h6" fontWeight="600">Meter Readings</Typography>}
+                        action={
+                            <AddReadingDialog admin={false} data={readings || []} allowedTypes={["Manila Water"]} onAdded={()=>{}} >
+                                <Button variant="text" startIcon={<AddCircle />} size="small" sx={{ fontWeight: 600 }}>Add Reading</Button>
+                            </AddReadingDialog>
+                        }
+                        sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 2 }}
+                    /> 
+                    <CardContent sx={{ p: 0, flexGrow: 1 }}>
+                        <Tabs 
+                            value={type} 
+                            onChange={(e,newValue) => setType(newValue)}
+                            sx={{ borderBottom: '1px solid', borderColor: 'divider', px: 2 }}
+                            indicatorColor="primary"
+                            textColor="primary"
+                        >
+                            <Tab label="Manila Water" value="Manila Water" sx={{ textTransform: 'none', fontWeight: 600 }} />
+                            <Tab label="Meralco" value="Meralco" sx={{ textTransform: 'none', fontWeight: 600 }} />
+                        </Tabs>
+                        
+                        <Box sx={{ p: 0 }}>
+                            <List disablePadding>
+                                {
+                                    readLoading ? (
+                                        Array.from(new Array(5)).map((_, i) => <LoadingReadingRow key={i} />)
+                                    ) : (
+                                        readings.filter((e:any)=>e.type === type)
+                                            .sort((a:any, b:any)=>a.date > b.date ? -1 : 1)
+                                            .slice(0, 10)
+                                            .map((e:any, i:number)=><ReadingRow key={i} reading={e} />)
+                                    )
+                                }
+                            </List>
+                        </Box>
                     </CardContent>                    
                 </Card>
             </Grid>
-            <Grid  size={{xs:12,md:6}} sx={{p:1}}>
-                <Box sx={{width:"100%"}}>
-                            <Typography variant='h5'>Payments</Typography>
-                    {payLoading ? <>
-                        <LoadingPaymentCard />
-                        <LoadingPaymentCard />
-                        <LoadingPaymentCard />
-                        <LoadingPaymentCard />
-                        <LoadingPaymentCard />
-                    </>: payments.sort((a,b)=>a.DateAdded > b.DateAdded ? -1:1).slice(0,10).map(e=><PaymentCard payment={e} />)}
-                        
-                </Box>
-            </Grid>
-            <Grid  size={{xs:12,md:6}} sx={{p:1}}>
-                
-               
-            </Grid>
-            <Grid size={8} sx={{textAlign:"center", p:2}}>
-                <Button variant='contained' size='large' onClick={()=>navigate({to:"/"})}>Back to Home</Button>
 
+            {/* Payments List */}
+            <Grid size={{xs:12, md:6}}>
+                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <CardHeader 
+                        title={<Typography variant="h6" fontWeight="600">Recent Payments</Typography>}
+                        sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 2 }}
+                    />
+                    <CardContent sx={{ p: 0, flexGrow: 1 }}>
+                        <List disablePadding>
+                            {payLoading ? (
+                                Array.from(new Array(5)).map((_, i) => <LoadingPaymentCard key={i} />)
+                            ) : (
+                                payments.sort((a:any, b:any)=>a.DateAdded > b.DateAdded ? -1 : 1)
+                                .slice(0, 10)
+                                .map((e:any, i:number)=><PaymentCard key={i} payment={e} />)
+                            )}
+                        </List>
+                    </CardContent>
+                </Card>
             </Grid>
-            <Grid size={8} sx={{textAlign:"center", p:2}}>
-                <Button variant='outlined' size='large' onClick={()=>navigate({to:"/admin"})}>Admin</Button>
-            </Grid>
-
         </Grid>
-    
-    </Box>
+    </Container>
 }
 
 export const Route = createFileRoute('/user/')({
     component: RouteComponent,
-  })
-  
+})

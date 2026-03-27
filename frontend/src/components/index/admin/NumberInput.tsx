@@ -1,6 +1,7 @@
-﻿import { TextField, TextFieldProps, TextFieldVariants } from "@mui/material";
+import { TextField } from "@mui/material";
+import type { TextFieldProps, TextFieldVariants } from "@mui/material";
 import numeral from "numeral";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 const NumberInput = (props: any) => {
   const [value, setValue] = useState("");
@@ -20,7 +21,7 @@ const NumberInput = (props: any) => {
     );
   }, [props.value]);
 
-  const onChange = (evt) => {
+  const onChange = (evt: any) => {
     if (
       !/([-0-9,]*\.[0-9]{0,2})*/.test(evt.target.value) &&
       /\.{2,}/.test(evt.target.value)

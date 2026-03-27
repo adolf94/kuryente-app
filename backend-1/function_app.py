@@ -312,8 +312,21 @@ def bills(req:func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse("", status_code=401)
     
-    
+  
     items = get_all_container("Bills")
+    return func.HttpResponse(json.dumps(items), mimetype="application/json", status_code=200)
+
+
+@app.route(route="master_bills", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
+def master_bills(req:func.HttpRequest) -> func.HttpResponse:
+
+    #validations
+    user = verify_custom_jwt(req.headers.get("Authorization"))
+    if(user == None):
+        return func.HttpResponse("", status_code=401)
+    
+    
+    items = get_all_container("MasterBills")
     return func.HttpResponse(json.dumps(items), mimetype="application/json", status_code=200)
 
 

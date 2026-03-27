@@ -42,8 +42,8 @@ const Timer = ({date} : {date: string})=>{
     },[date])
 
     return <span>
-        {!date ? <Skeleton variant="text" height={100} />:
-        <Typography variant='h3'>{remaining}</Typography>}
+        {!date ? <Skeleton variant="text" sx={{ height: { xs: 60, md: 100 } }} />:
+        <Typography variant='h3' sx={{ letterSpacing: '-1px', fontVariantNumeric: 'tabular-nums', fontSize: { xs: '1.75rem', sm: '2.5rem', md: '3rem' } }}>{remaining}</Typography>}
         </span>
 
 }

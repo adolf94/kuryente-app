@@ -1,12 +1,11 @@
-import { Box, Button, Card, CardContent, CardHeader, Grid, TextField, Typography } from '@mui/material'
+import { Box, Button, Card, CardContent, Grid, Typography, Alert, List, ListItem, ListItemIcon, ListItemText, Divider, Container, Paper } from '@mui/material'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import Timer from '../components/index/Timer'
-import {CloudUpload} from "@mui/icons-material"
-import moment from 'moment'
+import { CheckCircle, AccountBalanceWallet, AccessTimeFilled, Shield } from "@mui/icons-material"
 import { useEffect, useState } from 'react'
 import api from '../utils/api'
 import ImageModal from '../components/index/ImageModal'
-import { GoogleLogin, useGoogleLogin, type CredentialResponse } from '@react-oauth/google'
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google'
 import useLogin from '../components/GoogleLoginWrapper'
 import { anonApi } from '../utils/apiOld'
 
@@ -19,6 +18,7 @@ const Index = ()=>{
     const [loading, setLoading] = useState(false)
     const {user, setUser} = useLogin()
     const navigate = useNavigate({ from: '/' })
+    
     useEffect(()=>{
         anonApi.get("/get_timer_info").then(res=>{
             setTimer(res.data )
@@ -30,48 +30,8 @@ const Index = ()=>{
         setUser({...user,isAuthenticated:true, ...userinfo})
     },[])
 
-
-
-    const loginGoogle = useGoogleLogin({
-        redirect_uri: window.webConfig.redirectUri,
-        scope: "openid https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
-        onSuccess: codeResponse => {
-            setLoading(true);
-
-            anonApi.post("/google/auth", { code: codeResponse.code})
-                .then((e) => {
-                    window.localStorage.setItem("refresh_token", e.data.refresh_token);
-                    window.localStorage.setItem("access_token", e.data.access_token);
-                    navigate({to:"/user"})
-                    setUser({...user,isAuthenticated:true, ...e.data.user_info})
-                    return e.data;
-                }).catch(err => {
-                    if (!err.response?.status) {
-                        console.log(err)
-                        return navigate({to:"/errors/down"})
-                    }
-                    if (err.response.status === 401 && !!err.response.headers["X-GLogin-Error"]) {
-                        console.debug("INVALID CODE")
-                        setLoading(false)
-                    }
-                    if (err.response.status === 403) {
-                        navigate({to:"/errors/denied"})
-                    }
-                })
-                .then(res=>{
-                    window.localStorage.setItem("id_token", res.id_token);
-                                       
-                    // handleToken(res.id_token)
-                    setLoading(false);
-                });
-
-        },
-        flow: 'auth-code',
-    });
-
-    
     const onGoogleSuccess = (data: CredentialResponse)=>{
-            api.post(`${window.webConfig.auth}/auth/google_credential`, data, { preventAuth: true })
+            api.post(`${(window as any).webConfig.auth}/auth/google_credential`, data, { preventAuth: true } as any)
             .then(e=>{
                 window.localStorage.setItem("refresh_token", e.data.refresh_token);
                 window.sessionStorage.setItem("access_token", e.data.access_token);
@@ -97,65 +57,111 @@ const Index = ()=>{
             })
     }
 
-
-
     return (
-    <Grid container sx={{justifyContent:"center"}}>
-        <Grid size={12} sx={{p:2, display:"flex", justifyContent:"center", alignItems:"center"}}>
-            <Box sx={{display:"block"}}>
-                <Box sx={{display:"block",  textAlign:"center"}}>
-                    <Timer date={timer?.ExtendedTimer || timer?.DisconnectTime} /><br />
-                </Box>
-                <Box>
-                    <i>Disconnection will be automatic when timer counts down to 00:00</i>
-                </Box>
-            </Box>
-        </Grid>
-        <Grid size={{md:12, lg:6}} sx={{pt:2, p:1}}>
-            <Box>
-            <Card>
-                <CardContent>
-                    <Typography variant='h5'>Extend Electricity</Typography>
-                     <ImageModal timer={timer} onComplete={(data)=>setTimer(data.new_timer)}/>
+    <Container maxWidth="lg" sx={{ pt: { xs: 3, md: 4 }, pb: { xs: 4, md: 8 }, px: { xs: 2, sm: 3 } }}>
+        
 
-                    <Typography variant="h6">Instructions:</Typography> 
-                    <Typography variant="body1" sx={{pl:2}}>
-                            Do a screenshot of the payment done and click on <b>"Upload Payment proof"</b> button to submit the payment screenshot. Reconnection(if disconnected) will be done automatically after <b>validation</b>
-                    </Typography> 
-                    <Typography variant="body1" sx={{pt:1,pl:2}}>
-                        <b>Fund transfer to GCash (BDO to GCash / GCash to GCash):</b> <br />
-                        <Box component="span" sx={{pl:2}}>Will be validated / processed automatically by the System/Tool. Highly recommended if <b>disconnected</b> </Box>
-                    </Typography>
-                    <Typography variant="body1" sx={{pt:1,pl:2}}>
-                        <b>Fund transfer to BDO (BDO to BDO):</b> <br />
-                        <Box component="span" sx={{pl:2}}>Will be validated by <b>AR</b> within the day. <br /> </Box>
-                    </Typography>
-                </CardContent>
-            </Card>
-            </Box>
-            <Box sx={{pt:2}}>
-            <Card>
-                <CardContent>
-                    <Typography variant='h6'>Login to view history</Typography>
+
+        <Grid container spacing={3}>
+            {/* Status Section */}
+            <Grid size={{ xs: 12, md: 8 }}>
+                <Paper elevation={0} sx={{ p: { xs: 3, md: 4 }, borderRadius: 2, border: '1px solid', borderColor: 'divider', bgcolor: '#FFFFFF', display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', overflow: 'hidden' }}>
+                    {/* Decorative Background */}
+                    <Box sx={{ position: 'absolute', top: 0, right: 0, width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(67, 56, 202, 0.04) 0%, rgba(255,255,255,0) 70%)', transform: 'translate(30%, -30%)', pointerEvents: 'none' }} />
                     
-                    {user.isLoggedIn() ?
-                    <Box display="block" sx={{pt:1, textAlign:"center"}}>
-                        <Button variant='contained' size="large" loading={loading} onClick={()=>navigate({to:"/user"})}>Go to Dashboard</Button>
-                    </Box>: <Grid container sx={{pt:1, textAlign:"center", justifyContent:"center"}}>
-                        <Grid>
-                            <GoogleLogin onSuccess={onGoogleSuccess} />
-                        </Grid>
-                        {/* <Button variant='contained' size="large" loading={loading} onClick={loginGoogle}>Login with Google</Button> */}
-                    </Grid>}
-                </CardContent>
-            </Card>
-            </Box>
+                    <Typography variant="overline" color="primary.main" fontWeight="700" letterSpacing="1px" mb={1} textAlign={{ xs: 'center', md: 'left' }}>
+                        Connection Timer
+                    </Typography>
+                    
+                    <Box sx={{ my: 2 }}>
+                        <Timer date={timer?.ExtendedTimer || timer?.DisconnectTime} />
+                    </Box>
+
+                    <Box mt="auto" pt={3}>
+                        <Alert severity="warning" icon={<Shield />} sx={{ border: '1px solid', borderColor: 'warning.light', borderRadius: 2, '& .MuiAlert-message': { fontSize: { xs: '0.8rem', sm: '0.875rem' } } }}>
+                            Service disconnection is automated. Please extend your service before the timer reaches 00:00 to avoid interruption.
+                        </Alert>
+                    </Box>
+                </Paper>
+            </Grid>
+
+            {/* Upload Action */}
+            <Grid size={{ xs: 12, md: 4 }}>
+                <Card sx={{ height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
+                    <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 3 }}>
+                        <Box display="flex" alignItems="center" mb={2} color="primary.main">
+                            <AccountBalanceWallet sx={{ mr: 1 }} />
+                            <Typography variant='h6' fontWeight="600" color="text.primary">Extend Service</Typography>
+                        </Box>
+                        
+                        <Typography variant="body2" color="text.secondary" paragraph>
+                            Upload your payment receipt screenshot. Processing is instant for GCash transfers.
+                        </Typography>
+
+                        <Box mt="auto" sx={{ bgcolor: '#F8FAFC', border: '1px dashed', borderColor: 'divider', borderRadius: 2, p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                            <ImageModal timer={timer} onComplete={(data: any)=>setTimer(data.new_timer)}/>
+                        </Box>
+                    </CardContent>
+                </Card>
+            </Grid>
+
+            {/* Instructions */}
+            <Grid size={{ xs: 12, md: 6 }}>
+                <Card sx={{ height: '100%', borderRadius: 2 }}>
+                    <CardContent sx={{ p: 3 }}>
+                        <Typography variant="h6" fontWeight="600" mb={3}>Payment Channels</Typography>
+                        <List disablePadding>
+                            <ListItem alignItems="flex-start" sx={{ px: 0, pb: 2 }}>
+                                <ListItemIcon sx={{ minWidth: 36, mt: 0.25 }}>
+                                    <CheckCircle color="secondary" fontSize="small" />
+                                </ListItemIcon>
+                                <ListItemText 
+                                    primary={<Typography variant="subtitle2" fontWeight="600">GCash Transfers</Typography>}
+                                    secondary={<Typography variant="body2" color="text.secondary" mt={0.5}>Highly Recommended. System fully automates validation and reconnection immediately upon upload.</Typography>}
+                                />
+                            </ListItem>
+                            <Divider component="li" />
+                            <ListItem alignItems="flex-start" sx={{ px: 0, pt: 2 }}>
+                                <ListItemIcon sx={{ minWidth: 36, mt: 0.25 }}>
+                                    <AccessTimeFilled sx={{ color: 'text.secondary' }} fontSize="small" />
+                                </ListItemIcon>
+                                <ListItemText 
+                                    primary={<Typography variant="subtitle2" fontWeight="600">BDO Bank Transfers</Typography>}
+                                    secondary={<Typography variant="body2" color="text.secondary" mt={0.5}>Processed within 24 hours. Requires manual verification by the admin team.</Typography>}
+                                />
+                            </ListItem>
+                        </List>
+                    </CardContent>
+                </Card>
+            </Grid>
+
+            {/* Account Panel */}
+            <Grid size={{ xs: 12, md: 6 }}>
+                <Card sx={{ height: '100%', borderRadius: 2, bgcolor: '#F8FAFC' }}>
+                    <CardContent sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
+                        <Shield sx={{ fontSize: 40, color: 'primary.main', mb: 2, opacity: 0.8 }} />
+                        <Typography variant="h6" fontWeight="600" mb={1}>Secure Dashboard</Typography>
+                        <Typography variant="body2" color="text.secondary" mb={3} maxWidth={300}>
+                            Access your complete billing history, usage statistics, and account management tools.
+                        </Typography>
+
+                        {user.isLoggedIn() ? (
+                            <Button variant='contained' color="primary" size="large" disableElevation sx={{ px: 4, py: 1.5, borderRadius: 2 }} loading={loading} onClick={()=>navigate({to:"/user"})}>
+                                Enter Dashboard
+                            </Button>
+                        ) : (
+                            <Box sx={{ bgcolor: '#FFFFFF', p: 1, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                                <GoogleLogin onSuccess={onGoogleSuccess} shape="pill" />
+                            </Box>
+                        )}
+                    </CardContent>
+                </Card>
+            </Grid>
         </Grid>
-    </Grid>
+    </Container>
     
   )
 }
-
 
 export const Route = createFileRoute('/')({
   component: Index,

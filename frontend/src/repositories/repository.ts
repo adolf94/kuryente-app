@@ -117,6 +117,15 @@ export const useAllBills = (queryOptions? : UseQueryOptionsMod)=>useQuery<any>({
     
 })
 
-const Component = ()=>{
-    const {data} = useAllBills()
+export const MASTER_BILL = "master_bill"
+export const getMasterBills = ()=>{
+    return api.get<any[]>("/master_bills")
+        .then(e=>e.data)
 }
+export const useAllMasterBills = (queryOptions? : UseQueryOptionsMod)=>useQuery<any>({
+    placeholderData:queryOptions?.unsetPlaceholder ? undefined :[],
+    ...(queryOptions|| {}),
+    queryKey : [MASTER_BILL],
+    queryFn: ()=>getMasterBills(),
+    networkMode:'online',
+})

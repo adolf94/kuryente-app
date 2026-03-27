@@ -1,4 +1,5 @@
-﻿import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
+import axios, { AxiosError } from "axios";
+import type { AxiosInstance, AxiosRequestConfig } from "axios";
 import moment from "moment";
 // import { enqueueSnackbar } from "notistack";
 import { showLogin } from "../components/Login";
@@ -7,10 +8,10 @@ import { setRefreshing } from "../components/GoogleLoginWrapper";
 
 
 let isRefreshing = false;
-let failedQueue = [];
+let failedQueue: any[] = [];
 
 // Utility function to process the waiting queue
-const processQueue = (error, token = null) => {
+const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach(prom => {
     if (error) {
       prom.reject(error);

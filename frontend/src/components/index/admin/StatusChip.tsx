@@ -12,7 +12,12 @@ const StatusChip = (props)=>{
     const [rate,setRate] = useState(150)
     
     const show = !!anchorEl
-    const selection = [{color:"success", label:"Approved"}, {color:"primary", label:"Pending"}, {color:"error", label:"Rejected"}]
+    const selection = [
+        { color: "success", label: "Approved" }, 
+        { color: "warning", label: "Pending" }, 
+        { color: "error", label: "Rejected" },
+        { color: "error", label: "Declined" }
+    ] as const;
     const data = useMemo(()=>{
         return selection.find(e=>e.label == props.value)
     },[props.value])

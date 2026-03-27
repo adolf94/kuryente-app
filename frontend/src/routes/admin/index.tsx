@@ -1,9 +1,10 @@
-import { CancelOutlined, CheckCircle, CheckCircleOutline, Image, ArrowDropDown } from '@mui/icons-material'
-import { Box, Button, Card, CardContent, CardHeader, Chip, CircularProgress, Dialog, DialogContent, Grid, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material'
+import { ArrowDropDown, Payments, PendingActions, Timer, BarChart, WaterDrop, FlashOn, AccountBalance, Add, Shield, CheckCircleOutline, ReceiptLong, AccountCircle } from '@mui/icons-material'
+import { Box, Button, Card, CardContent, CardHeader, Chip, Grid, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography, Stack, Divider, Tab, Tabs, Container } from '@mui/material'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import StatusChip from '../../components/index/admin/StatusChip'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import api from '../../utils/api'
+import { anonApi } from '../../utils/apiOld'
 import numeral from 'numeral'
 import moment from 'moment'
 import { useConfirm } from 'material-ui-confirm'
@@ -11,8 +12,11 @@ import AddPaymentDialog from '../../components/index/admin/AddPaymentDialog'
 import ViewImageDialog from '../../components/index/admin/ViewImageDialog'
 import AddReadingDialog from '../../components/index/admin/AddReadingDialog'
 import { useQuery } from '@tanstack/react-query'
-import { getAllReadings, getPayments, PAYMENT, READING, usePaymentMutation } from '../../repositories/repository'
+import { getAllReadings, getPayments, PAYMENT, READING, usePaymentMutation, useAllReading, useAllPayments, useAllMasterBills } from '../../repositories/repository'
 import AddMasterBillDialog from '../../components/index/admin/AddMasterBillDialog'
+import AdminMetricCard from '../../components/index/admin/AdminMetricCard'
+import AdminBillDetailsDialog from '../../components/index/admin/AdminBillDetailsDialog'
+import ViewReadingsDialog from '../../components/index/admin/ViewReadingsDialog'
 
 export const Route = createFileRoute('/admin/')({
   component: RouteComponent,
@@ -25,244 +29,348 @@ export const Route = createFileRoute('/admin/')({
 function RouteComponent() {
   const confirm = useConfirm()
   const navigate = useNavigate()
-  const {data : readings} = useQuery({
-    queryFn:()=>getAllReadings(),
-    queryKey:[READING],
-    initialData:[],
-    placeholderData:[]
-  })
-  
-  const {data: data, } = useQuery<any[]>({
-      queryKey: [PAYMENT],
-      queryFn: ()=>getPayments(),
-      initialData: [],
-      placeholderData:[]
-  })
-  const {decide_admin} = usePaymentMutation()
+  const { data: readings = [] } = useAllReading()
+  const { data: payments = [] } = useAllPayments()
+  const { data: bills = [] } = useAllMasterBills()
+  const { decide_admin } = usePaymentMutation()
   const [billDate, setBillDate] = useState(moment().format("YYYY-MM-01"))
+  const [activeTab, setActiveTab] = useState(0)
+  const [timerInfo, setTimerInfo] = useState<any>(null)
   const [isLoading, setLoading] = useState(false)
 
-
-  const decide = (index : int, decision : any)=>{
-
-    confirm({
-      title: "Confirm",
-      description: `Are you sure with ${decision["label"]}?`
-    }).then(async (val)=>{
-      if(!val) return
-      if(val.confirmed)
-          var res = await decide_admin.mutateAsync({id:data[index].id, decision:decision.label})
-          if(decision.label == "Approved"){
-            confirm({
-              title: "Approved",
-              description: `Elec/Water has been extended till ${moment(res?.timer.DisconnectTime).format("MMM DD")}`,
-              hideCancelButton:true
-            })
-          }else{
-            confirm({
-              title: "Declined",
-              description:"Rejection Successful",
-              hideCancelButton:true
-            })
-          }
-          
+  useEffect(() => {
+    anonApi.get("/get_timer_info").then((res: any) => {
+      setTimerInfo(res.data)
     })
+  }, [])
 
+  const stats = useMemo(() => {
+    const pendingCount = payments.filter(p => p.Status === 'Pending').length;
+    const mtdCollection = payments
+      .filter(p => p.Status === 'Approved' && moment(p.File?.datetime).isSame(moment(), 'month'))
+      .reduce((sum, p) => sum + (p.File?.amount || 0), 0);
+    
+    // Latest reading date
+    const lastReading = readings?.[0]?.date ? moment(readings[0].date).format("MMM DD") : 'N/A';
+    
+    // Connection Status
+    const isConnected = timerInfo?.ExtendedTimer || timerInfo?.DisconnectTime ? moment(timerInfo.ExtendedTimer || timerInfo.DisconnectTime).isAfter(moment()) : false;
+    
+    return {
+      pendingCount,
+      mtdCollection: numeral(mtdCollection).format("0,0.00"),
+      lastReading,
+      totalPayments: payments.length,
+      status: isConnected ? "Connected" : "Disconnected",
+      statusColor: isConnected ? "success" : "error" as const
+    }
+  }, [payments, readings, timerInfo])
+
+  const pendingPaymentsCount = useMemo(() => payments.filter(p => p.Status === 'Pending').length, [payments])
+
+  const decide = (p_data: any, decision: any) => {
+    confirm({
+      title: "Confirm Decision",
+      description: `Are you sure you want to mark this as ${decision["label"]}?`
+    }).then(async (val) => {
+      if (!val) return
+      if (val.confirmed) {
+        var res = await decide_admin.mutateAsync({ id: p_data.id, decision: decision.label })
+        if (decision.label == "Approved") {
+          confirm({
+            title: "Approved",
+            description: `Payment confirmed. Extension granted till ${moment(res?.timer.DisconnectTime).format("MMM DD")}`,
+            hideCancelButton: true
+          })
+        } else {
+          confirm({
+            title: "Decision Recorded",
+            description: `${decision.label} Successful`,
+            hideCancelButton: true
+          })
+        }
+      }
+    })
   }
 
-  const generateBill = ()=>{
+  const generateBill = () => {
     setLoading(true)
-    api.get(`/create_bill`, {params:{date:billDate}})
-      .then(e=>{
-        navigate({to:`/user/bills/${billDate}`})
+    api.get(`/create_bill`, { params: { date: billDate } })
+      .then(e => {
+        navigate({ to: `/user/bills/${billDate}` })
         setLoading(false)
       })
-
   }
 
-  return <>
-    <Grid container>
-      <Grid size={{xs:12,md:5}} sx={{p:1}}>
-        <Card>
-          <CardContent>
-            <Box sx={{display:"flex", justifyContent:"space-between"}}>
-              <Box>
-                <Typography variant='h6'>
-                  Payment Histories
-                </Typography>
-              </Box>
-              <Box>
-                <AddPaymentDialog onCreate={()=>{}}/>
-              </Box>
-            </Box>
-          </CardContent>
-          <CardContent>
-            <TableContainer sx={{display:{xs:'none',sm:"block"}}}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      Date
-                    </TableCell>
-                    <TableCell>
-                      Source
-                    </TableCell>
-                    <TableCell>
-                      Amount
-                    </TableCell>
-                    <TableCell>
-                      Rate
-                    </TableCell>
-                    <TableCell>
-                      Status
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {
-                    data.map((e,i)=><TableRow key={e.id}>
-                      <TableCell>
-                        {moment(e.File.datetime).format("MMM DD")}
-                      </TableCell>
-                      <TableCell>
-                        {e.File.fileId && <ViewImageDialog fileId={e.File.fileId} />}
-                        {e.File?.recipientBank}
-                      </TableCell>
-                      <TableCell sx={{textAlign:"right"}}>
-                        {numeral(e.File.amount).format("0,0.00")}
-                      </TableCell>
-                      <TableCell>
-                        <Chip size="small" color='success' label={(e.File?.days || 0) + "@150"}/>
-                      </TableCell>
-                      <TableCell>
-                      <StatusChip value={e.Status} size="small" select onChange={(newValue)=>{
-                          decide(i,newValue)
-                        }}></StatusChip>
-                      </TableCell>
-                    </TableRow>)
-                  }
-                  
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <Box  sx={{display:{xs:"block", sm:"none"}}}>
-              
-            {
-                    data.map((e,i)=><Paper variant='outlined' sx={{p:2}}>
-              <Grid container> 
-                <Grid size={6} sx={{pb:1}}>
-                  <Typography variant='body2'>{moment(e.File.datetime).format("MMM DD")}</Typography>
-                </Grid>
-                <Grid size={6} sx={{textAlign:"right",pb:1}}>
-                  <StatusChip value={e.Status} size="small" onChange={(newValue)=>{
-                      decide(i,newValue)
-                    }}></StatusChip>
-                </Grid>
-                <Grid size={6}>
-                  <Typography variant='body2'>
-                        {e.File.fileId && <ViewImageDialog fileId={e.File.fileId} />}
-                        {e.File?.recipientBank}
-                  </Typography>
-                </Grid>
-                <Grid size={6} sx={{textAlign:"right",pb:1}}>
-                  <Typography variant='body2'>
-                  {numeral(e.File.amount).format("0,0.00")}</Typography>
-                </Grid>
-                <Grid size={6} sx={{pb:1}}>
-                  <Chip size="small" color='success' label="12D @ P 150"></Chip>
-                </Grid>
-                <Grid size={6}>
-                </Grid>
-              </Grid>
-            </Paper>
-                    
-                    
-                  )}
-                  
-            </Box>
-          </CardContent>
-        </Card>
+  return (
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      {/* Dashboard Header */}
+      <Box mb={4} display="flex" justifyContent="space-between" alignItems="flex-end">
+        <Box>
+          <Typography variant="h4" fontWeight="700" color="text.primary">Admin Command Center</Typography>
+          <Typography variant="body1" color="text.secondary">Real-time utility management and payment approvals</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button variant="outlined" color="inherit" onClick={() => navigate({ to: '/user' })} startIcon={<AccountCircle />}>
+            Switch to User View
+          </Button>
+          <TextField 
+            type="date" 
+            size="small" 
+            label="Statement Date"
+            slotProps={{ inputLabel: { shrink: true }}}
+            value={billDate} 
+            onChange={(evt) => setBillDate(evt.target.value)} 
+          />
+          <Button variant="contained" onClick={generateBill} startIcon={<Payments />} disabled={isLoading}>
+            Generate Bill
+          </Button>
+        </Box>
+      </Box>
+
+      <Grid container spacing={3} mb={4}>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <AdminMetricCard title="CONNECTION STATUS" value={stats.status} icon={<Timer />} color={stats.statusColor as any} subtitle={timerInfo ? `Till ${moment(timerInfo.ExtendedTimer || timerInfo.DisconnectTime).format("MMM DD, HH:mm")}` : "Loading..."} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <AdminMetricCard title="PENDING APPROVALS" value={stats.pendingCount} icon={<PendingActions />} color="warning" subtitle="Requires immediate action" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <AdminMetricCard title="MTD COLLECTION" value={`₱${stats.mtdCollection}`} icon={<Payments />} color="success" subtitle="Current month approved" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          <AdminMetricCard title="LATEST READING" value={stats.lastReading} icon={<BarChart />} color="info" subtitle="Status of last meter check" />
+        </Grid>
       </Grid>
 
-      <Grid size={{xs:12,md:7}} sx={{p:1}}>
-        <Card>
-          <CardHeader>
-            <Typography variant='h6'>
-              Bill Histories
-            </Typography>
-          </CardHeader>
-          <CardContent>
-            <Grid container sx={{justifyContent:"space-between"}}>
-              <Grid>
-                  <AddReadingDialog onAdded={()=>{}}  data={readings} allowedTypes={["Manila Water", "Meralco"]} admin>
-                    <Button>Add Reading</Button>
-                  </AddReadingDialog>
-                  <AddMasterBillDialog>
-                    <Button>Add Master Bill</Button>
-                  </AddMasterBillDialog>
-              </Grid>
-              <Grid>
-                <TextField type="date" size="small" variant='standard' slotProps={{ input: {disableUnderline: true }}}
-                  value={billDate} onChange={(evt)=>setBillDate(evt.target.value)}
-                />
-                <Dialog open={isLoading} slotProps={{
-                    paper:{
-                        sx: {
-                            backgroundColor: 'transparent',
-                            boxShadow: 'none',
-                        },
-                    }
-                  }}>
-                    <DialogContent>
-                        <CircularProgress size={100}/>
-                    </DialogContent>
-                </Dialog>
-                <Button onClick={generateBill}> Generate Bill</Button>
-              </Grid>
-            </Grid>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      Date
-                    </TableCell>
-                    <TableCell>
-                      Utility
-                    </TableCell>
-                    <TableCell>
-                      Reading
-                    </TableCell>
-                    <TableCell>
-                      Consumption
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {readings.map(e=><TableRow>
-                    <TableCell>
-                      {moment(e.date).format("YYYY-MM-DD")}
-                    </TableCell>
-                    <TableCell>
-                      {e.type}
-                    </TableCell>
-                    <TableCell>
-                      {e.reading}
-                    </TableCell>
-                    <TableCell>
-                      {e.consumption}
-                    </TableCell>
-                    <TableCell>
-                      {e.consumption * e.per_unit} ({e.per_unit}/unit)
-                    </TableCell>
-                  </TableRow>)}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </CardContent>
-        </Card>
-      </Grid>
+      <Grid container spacing={4}>
+        {/* Left Column: Payments */}
+        <Grid size={{ xs: 12, lg: 7 }}>
+          <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+            <CardHeader 
+              title={<Typography variant="h6" fontWeight="600">Payment Feed</Typography>}
+              action={<AddPaymentDialog onCreate={() => { }} />}
+              sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1.5 }}
+            />
+            <Box sx={{ px: 2, pt: 1 }}>
+              <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}>
+                <Tab label={pendingPaymentsCount > 0 ? `Action Required (${pendingPaymentsCount})` : "Action Required"} sx={{ fontWeight: 600 }} />
+                <Tab label="History" sx={{ fontWeight: 600 }} />
+                <Tab label="Master Bills" sx={{ fontWeight: 600 }} />
+              </Tabs>
+            </Box>
+            <CardContent sx={{ p: 0 }}>
+              <TableContainer sx={{ minHeight: 400 }}>
+                {activeTab === 0 ? (
+                  <Table size="medium">
+                    <TableHead sx={{ bgcolor: '#F8FAFC' }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Source & Receipt</TableCell>
+                        <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Amount</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Effect</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Action</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {payments.filter(p => p.Status === 'Pending').map((e) => (
+                        <TableRow key={e.id} hover sx={{ bgcolor: 'rgba(255, 193, 7, 0.04)' }}>
+                          <TableCell>{moment(e.File?.datetime).format("MMM DD")}</TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              {e.File?.fileId && <ViewImageDialog fileId={e.File.fileId} />}
+                              <Typography variant="body2">{e.File?.recipientBank || 'Cash'}</Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "right", fontWeight: 600 }}>
+                            ₱{numeral(e.File?.amount).format("0,0.00")}
+                          </TableCell>
+                          <TableCell>
+                            <Chip size="small" variant="outlined" label={`${e.File?.days || 0}D @ ₱150`} color={(e.File?.days || 0) > 0 ? "success" : "default"} />
+                          </TableCell>
+                          <TableCell>
+                            <StatusChip value={e.Status} size="small" select onChange={(newValue) => decide(e, newValue)} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {pendingPaymentsCount === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center" sx={{ py: 10 }}>
+                            <Stack alignItems="center" spacing={1.5}>
+                              <CheckCircleOutline sx={{ fontSize: 48, color: 'success.main', opacity: 0.5 }} />
+                              <Box>
+                                <Typography variant="subtitle1" fontWeight="600" color="text.primary">
+                                  You're all caught up!
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  No pending payments found.
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                ) : activeTab === 1 ? (
+                  <Table size="medium">
+                    <TableHead sx={{ bgcolor: '#F8FAFC' }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Source & Receipt</TableCell>
+                        <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Amount</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {payments.filter(p => p.Status !== 'Pending').sort((a,b)=> moment(b.File?.datetime).valueOf() - moment(a.File?.datetime).valueOf()).map((e) => (
+                        <TableRow key={e.id} hover>
+                          <TableCell>{moment(e.File?.datetime).format("MMM DD")}</TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              {e.File?.fileId && <ViewImageDialog fileId={e.File.fileId} />}
+                              <Typography variant="body2">{e.File?.recipientBank || 'Cash'}</Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell sx={{ textAlign: "right", fontWeight: 600 }}>
+                            ₱{numeral(e.File?.amount).format("0,0.00")}
+                          </TableCell>
+                          <TableCell>
+                            <StatusChip value={e.Status} size="small" />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <Table size="medium">
+                    <TableHead sx={{ bgcolor: '#F8FAFC' }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>Bill Date</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Utility</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Amount</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Usage</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Rate</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Details</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {bills.map((b: any) => (
+                        <TableRow key={b.id} hover>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="600">
+                              {moment(b.bill_date).format("MMM DD, YYYY")}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {moment(b.billing_start).format("MMM DD")} - {moment(b.billing_end).format("MMM DD")}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              {b.type?.includes("Meralco") ? <FlashOn fontSize="small" color="warning" /> : <WaterDrop fontSize="small" color="info" />}
+                              <Typography variant="body2">{b.type}</Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>₱{numeral(b.current).format("0,0.00")}</TableCell>
+                          <TableCell>{b.consumption || '-'} {b.type?.includes("Water") ? 'm³' : 'KWH'}</TableCell>
+                          <TableCell>₱{numeral(b.price_per_unit).format("0.0000")}</TableCell>
+                          <TableCell>
+                             {b.file_id ? <AdminBillDetailsDialog bill={b} /> : '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {bills.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} align="center" sx={{ py: 10 }}>
+                            <Typography variant="body2" color="text.secondary">No master bills uploaded yet.</Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </TableContainer>
+            </CardContent>
+          </Card>
+        </Grid>
 
-    </Grid>
-  </>
+        {/* Right Column: Utilities & Billing */}
+        <Grid size={{ xs: 12, lg: 5 }}>
+          <Stack spacing={4}>
+            {/* Readings Manager Card */}
+            <Card elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+              <CardHeader 
+                title={<Typography variant="h6" fontWeight="600">Utility Readings</Typography>}
+                sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
+                action={
+                  <Stack direction="row" spacing={1}>
+                    <AddReadingDialog onAdded={() => { }} data={readings} allowedTypes={["Manila Water", "Meralco"]} admin>
+                      <Button size="small" startIcon={<Add fontSize="inherit" />}>Reading</Button>
+                    </AddReadingDialog>
+                    <AddMasterBillDialog>
+                      <Button size="small" startIcon={<Add fontSize="inherit" />}>Master Bill</Button>
+                    </AddMasterBillDialog>
+                  </Stack>
+                }
+              />
+              <CardContent sx={{ p: 0 }}>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead sx={{ bgcolor: '#F8FAFC' }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600 }}>Utility</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Last Data</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Value</TableCell>
+                        <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Cost</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {['Meralco', 'Manila Water'].map(type => {
+                        const item = readings.find(r => r.type === type);
+                        return (
+                          <TableRow key={type}>
+                            <TableCell>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                {type === 'Meralco' ? <FlashOn color="warning" fontSize="small" /> : <WaterDrop color="info" fontSize="small" />}
+                                <Typography variant="body2" fontWeight="600">{type}</Typography>
+                              </Stack>
+                            </TableCell>
+                            <TableCell>{item ? moment(item.date).format("MMM DD") : 'N/A'}</TableCell>
+                            <TableCell>{item ? `${item.reading} (${item.consumption})` : '-'}</TableCell>
+                            <TableCell sx={{ textAlign: 'right' }}>
+                              {item ? `₱${numeral(item.consumption * item.per_unit).format("0,0.00")}` : '-'}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <Divider />
+                <Box p={2}>
+                  <ViewReadingsDialog readings={readings} />
+                </Box>
+              </CardContent>
+            </Card>
+
+            {/* Quick Settings Placeholder */}
+            <Card elevation={0} sx={{ borderRadius: 2, bgcolor: '#EEF2FF', border: '1px solid', borderColor: 'indigo.100' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Box sx={{ p: 1.5, bgcolor: 'indigo.500', color: 'white', borderRadius: 2 }}>
+                    <Shield />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight="700" color="indigo.900">System Controls</Typography>
+                    <Typography variant="body2" color="indigo.700">Global Rate: ₱150.00 / day</Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Stack>
+        </Grid>
+      </Grid>
+      
+    </Container>
+  )
 }

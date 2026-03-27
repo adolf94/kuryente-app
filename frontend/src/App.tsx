@@ -5,6 +5,8 @@ import { GoogleOAuthProvider } from '@react-oauth/google'
 import useLogin, { AuthContextProvider } from "./components/GoogleLoginWrapper"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import Login from "./components/Login"
+import { ThemeProvider, CssBaseline } from '@mui/material'
+import { theme } from './theme'
 
 // Create a new router instance
 const router = createRouter({ routeTree, 
@@ -37,10 +39,13 @@ export const queryClient = new QueryClient({
 
     return <>
     <GoogleOAuthProvider clientId={window.webConfig.clientId}>
-      <Login />
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} context={{user}}/>
-      </QueryClientProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Login />
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} context={{user}}/>
+        </QueryClientProvider>
+      </ThemeProvider>
     </GoogleOAuthProvider>
     </>
 
