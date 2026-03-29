@@ -38,7 +38,44 @@ const SupportChatModal = ({open, onClose})=>{
 
     }
 
-    return <Dialog maxWidth="md" fullWidth fullScreen={fullScreen} open={open} onClose={onClose}>
+    return <Dialog 
+        maxWidth="sm" 
+        fullWidth 
+        fullScreen={fullScreen} 
+        open={open} 
+        onClose={onClose}
+        hideBackdrop={!fullScreen}
+        disableEnforceFocus={!fullScreen}
+        scroll="paper"
+        slotProps={{
+            root: {
+                sx: { 
+                    pointerEvents: 'none',
+                    // On desktop, position it in the bottom right
+                    ...(!fullScreen && {
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'flex-end',
+                        '& .MuiDialog-container': {
+                            alignItems: 'flex-end',
+                            justifyContent: 'flex-end',
+                            p: 3
+                        }
+                    })
+                }
+            },
+            paper: {
+                sx: { 
+                    pointerEvents: 'auto',
+                    mb: fullScreen ? 0 : 2,
+                    mr: fullScreen ? 0 : 2,
+                    maxHeight: fullScreen ? '100%' : 'calc(100% - 64px)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                    borderRadius: fullScreen ? 0 : '16px',
+                }
+            }
+        }}
+    >
         <DialogTitle
         sx={{
             p: 1, 
@@ -112,7 +149,7 @@ const SupportChatModal = ({open, onClose})=>{
                key={chip}
                label={chip} 
                size="small" 
-               onClick={() => { setInput(chip); }}
+               onClick={() => { setMessage(chip); }}
                sx={{ 
                  fontSize: '0.65rem', 
                  fontWeight: 800, 

@@ -1,6 +1,6 @@
 import { Box, Button, CircularProgress, Dialog, DialogContent, DialogTitle, Divider, Grid, IconButton, Stack, Typography, useMediaQuery, useTheme } from "@mui/material"
 import { Close, ReceiptLong, Visibility } from "@mui/icons-material"
-import React, { useState } from "react"
+import { useState } from "react"
 import api from "../../../utils/api"
 import numeral from "numeral"
 import moment from "moment"
@@ -19,7 +19,7 @@ const AdminBillDetailsDialog = ({ bill }: AdminBillDetailsDialogProps) => {
     const onViewClicked = async () => {
         setOpen(true)
         if (url !== "" || !bill.file_id) return
-        
+
         setLoading(true)
         try {
             const e = await api.get(`/files/${bill.file_id}`)
@@ -40,11 +40,11 @@ const AdminBillDetailsDialog = ({ bill }: AdminBillDetailsDialogProps) => {
                 <Visibility fontSize="small" />
             </IconButton>
 
-            <Dialog 
-                open={open} 
-                maxWidth="lg" 
-                fullWidth 
-                fullScreen={isMobile} 
+            <Dialog
+                open={open}
+                maxWidth="lg"
+                fullWidth
+                fullScreen={isMobile}
                 onClose={() => setOpen(false)}
             >
                 <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#F8FAFC' }}>
@@ -65,11 +65,11 @@ const AdminBillDetailsDialog = ({ bill }: AdminBillDetailsDialogProps) => {
                         <Close />
                     </IconButton>
                 </DialogTitle>
-                
+
                 <DialogContent dividers sx={{ p: 0 }}>
-                    <Grid container sx={{ height: isMobile ? 'auto' : '75vh' }}>
+                    <Grid container sx={{ minHeight: isMobile ? 'auto' : '75vh' }}>
                         {/* Left Side: PDF Viewer */}
-                        <Grid item xs={12} md={8} sx={{ height: '100%', borderRight: '1px solid', borderColor: 'divider' }}>
+                        <Grid size={{ xs: 12, md: 8 }} sx={{ height: isMobile ? '70vh' : '100%', borderRight: { xs: 'none', md: '1px solid' }, borderBottom: { xs: '1px solid', md: 'none' }, borderColor: 'divider' }}>
                             {loading ? (
                                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                                     <CircularProgress size={40} />
@@ -92,7 +92,7 @@ const AdminBillDetailsDialog = ({ bill }: AdminBillDetailsDialogProps) => {
                         </Grid>
 
                         {/* Right Side: Data Summary */}
-                        <Grid item xs={12} md={4} sx={{ p: 3, bgcolor: '#FAFAFA' }}>
+                        <Grid size={{ xs: 12, md: 4 }} sx={{ p: 3, bgcolor: '#FAFAFA' }}>
                             <Typography variant="overline" color="text.secondary" fontWeight="700">EXTRACTED DATA</Typography>
                             <Stack spacing={2.5} sx={{ mt: 2 }}>
                                 <Box>
@@ -101,15 +101,15 @@ const AdminBillDetailsDialog = ({ bill }: AdminBillDetailsDialogProps) => {
                                         ₱{numeral(bill.current).format("0,0.00")}
                                     </Typography>
                                 </Box>
-                                
+
                                 <Divider />
-                                
+
                                 <Grid container spacing={2}>
-                                    <Grid item xs={6}>
+                                    <Grid size={6}>
                                         <Typography variant="caption" color="text.secondary" display="block">Consumption</Typography>
-                                        <Typography variant="body1" fontWeight="600">{bill.consumption || '-'} KWH</Typography>
+                                        <Typography variant="body1" fontWeight="600">{bill.consumption || '-'} {bill.type?.includes("Water") ? 'm³' : 'KWH'}</Typography>
                                     </Grid>
-                                    <Grid item xs={6}>
+                                    <Grid size={6}>
                                         <Typography variant="caption" color="text.secondary" display="block">Unit Rate</Typography>
                                         <Typography variant="body1" fontWeight="600">₱{numeral(bill.price_per_unit).format("0.0000")}</Typography>
                                     </Grid>

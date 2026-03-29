@@ -5,7 +5,6 @@ import { CheckCircle, AccountBalanceWallet, AccessTimeFilled, Shield } from "@mu
 import { useEffect, useState } from 'react'
 import api from '../utils/api'
 import ImageModal from '../components/index/ImageModal'
-import { GoogleLogin, type CredentialResponse } from '@react-oauth/google'
 import useLogin from '../components/GoogleLoginWrapper'
 import { anonApi } from '../utils/apiOld'
 
@@ -16,46 +15,14 @@ const Index = ()=>{
         ExtendedTimer:""
     })
     const [loading, setLoading] = useState(false)
-    const {user, setUser} = useLogin()
+    const { user, login } = useLogin()
     const navigate = useNavigate({ from: '/' })
-    
+
     useEffect(()=>{
         anonApi.get("/get_timer_info").then(res=>{
             setTimer(res.data )
         })
-        let token = window.localStorage.getItem("id_token")
-        if(!token) return
-
-        let userinfo = JSON.parse(window.atob(token.split(".")[1]));
-        setUser({...user,isAuthenticated:true, ...userinfo})
     },[])
-
-    const onGoogleSuccess = (data: CredentialResponse)=>{
-            api.post(`${(window as any).webConfig.auth}/auth/google_credential`, data, { preventAuth: true } as any)
-            .then(e=>{
-                window.localStorage.setItem("refresh_token", e.data.refresh_token);
-                window.sessionStorage.setItem("access_token", e.data.access_token);
-                window.localStorage.setItem("id_token", e.data.id_token);
-                let userinfo = JSON.parse(window.atob(e.data.id_token!.split(".")[1]));
-                navigate({to:"/user"})
-                setUser({ ...user, isAuthenticated:true, ...userinfo})
-                setLoading(false);
-
-                return e.data;
-            }).catch(err => {
-                if (!err.response?.status) {
-                    console.log(err)
-                    return navigate({to:"/errors/down"})
-                }
-                if (err.response.status === 401 && !!err.response.headers["X-GLogin-Error"]) {
-                    console.debug("INVALID CODE")
-                    setLoading(false)
-                }
-                if (err.response.status === 403) {
-                    navigate({to:"/errors/denied"})
-                }
-            })
-    }
 
     return (
     <Container maxWidth="lg" sx={{ pt: { xs: 3, md: 4 }, pb: { xs: 4, md: 8 }, px: { xs: 2, sm: 3 } }}>
@@ -150,9 +117,16 @@ const Index = ()=>{
                                 Enter Dashboard
                             </Button>
                         ) : (
-                            <Box sx={{ bgcolor: '#FFFFFF', p: 1, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                                <GoogleLogin onSuccess={onGoogleSuccess} shape="pill" />
-                            </Box>
+                            <Button 
+                                variant='contained' 
+                                color="primary" 
+                                size="large" 
+                                disableElevation 
+                                sx={{ px: 4, py: 1.5, borderRadius: 2 }} 
+                                onClick={() => login()}
+                            >
+                                Login with Atlas-Auth
+                            </Button>
                         )}
                     </CardContent>
                 </Card>

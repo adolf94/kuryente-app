@@ -1,6 +1,6 @@
-import { Box, Button, Dialog, DialogContent, DialogTitle, IconButton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from "@mui/material"
+import { Box, Button, Dialog, DialogContent, DialogTitle, IconButton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useMediaQuery, useTheme } from "@mui/material"
 import { Close, BarChart, FlashOn, WaterDrop } from "@mui/icons-material"
-import React, { useState } from "react"
+import { useState } from "react"
 import moment from "moment"
 import numeral from "numeral"
 
@@ -10,6 +10,8 @@ interface ViewReadingsDialogProps {
 
 const ViewReadingsDialog = ({ readings }: ViewReadingsDialogProps) => {
     const [open, setOpen] = useState(false)
+    const theme = useTheme()
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
     // Sort readings by date descending
     const sortedReadings = [...readings].sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf())
@@ -25,8 +27,9 @@ const ViewReadingsDialog = ({ readings }: ViewReadingsDialogProps) => {
                 onClose={() => setOpen(false)} 
                 maxWidth="md" 
                 fullWidth
+                fullScreen={isMobile}
                 PaperProps={{
-                    sx: { borderRadius: 2 }
+                    sx: { borderRadius: isMobile ? 0 : 2 }
                 }}
             >
                 <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#F8FAFC' }}>

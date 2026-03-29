@@ -8,7 +8,7 @@ import logging
 
 import pytz
 from deps.automate_notif import send_notification
-from deps.google_auth import verify_custom_jwt
+from deps.google_auth import verify_custom_jwt, has_scope
 from deps.support_chat_ai import SupportChatManager
 from deps.tuya import get_status, save_status_checkpoint, switch_device
 from deps.textbee_sms import send_sms
@@ -111,7 +111,7 @@ def get_img_by_id(req: func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse("", status_code=401)
 
-    if("KURYENTE_ADMIN" not in user["role"] ):
+    if(not has_scope(user, "admin") ):
         return func.HttpResponse("", status_code=403)
     
 
@@ -138,7 +138,7 @@ def record_payment(req: func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse("", status_code=401)
 
-    if("KURYENTE_ADMIN" not in user["role"] ):
+    if(not has_scope(user, "admin") ):
         return func.HttpResponse("", status_code=403)
     
     body = req.get_json()
@@ -183,7 +183,7 @@ def upload_bill(req: func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse(status_code=401)
 
-    if("KURYENTE_ADMIN" not in user["role"] ):
+    if(not has_scope(user, "admin") ):
         return func.HttpResponse("", status_code=403)
     
     print(req.files["file"])
@@ -244,7 +244,7 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
     if(user == None):
         return func.HttpResponse("", status_code=401)
 
-    if("KURYENTE_ADMIN" not in user["role"] ):
+    if(not has_scope(user, "admin") ):
         return func.HttpResponse("", status_code=403)
 
     body = req.get_json()
@@ -365,7 +365,7 @@ def add_reading(req: func.HttpRequest) -> func.HttpResponse:
     body = req.get_json()
     if(user == None):
         return func.HttpResponse(status_code=401)
-    if("KURYENTE_ADMIN" not in user["role"] ):
+    if(not has_scope(user, "admin") ):
         return func.HttpResponse(status_code=403, mimetype="application/json")
     
     after = get_reading_by_date(body["date"], body["type"], "asc")

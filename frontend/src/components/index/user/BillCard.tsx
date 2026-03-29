@@ -15,7 +15,7 @@ const BillCard = ({item, date} : {item:any, date:Date})=>{
     return <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', transition: 'all 0.2s', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
         <CardContent sx={{ pb: 1, flexGrow: 1 }}>
             <Typography variant='overline' color="text.secondary" fontWeight="700">
-                {moment(date).format("MMM YYYY")}
+                {moment(date).subtract(5, 'days').format("MMM YYYY")}
             </Typography>
             <Typography variant='h4' fontWeight="700" color="primary.main" sx={{ mt: 1, mb: 3 }}>
                 P {numeral(bill?.current).format("0,0.00")}

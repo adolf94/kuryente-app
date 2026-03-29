@@ -2,14 +2,14 @@
 # Ref: aka.ms/functions-azure-monitor-python
 # azure-monitor-opentelemetry
 
+PyJWT[crypto]
+requests
 azure-functions
 azure-cosmos
 azure-identity
 Werkzeug
 uuid7
-requests
-azure.storage.blob 
-azure.identity
+azure.storage.blob
 google-genai
 python-dateutil
 Pillow

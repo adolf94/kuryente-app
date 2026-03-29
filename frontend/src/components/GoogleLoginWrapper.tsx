@@ -1,106 +1,50 @@
-import { useGoogleLogin } from "@react-oauth/google";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { Token } from "@mui/icons-material";
-import { jwtDecode, type JwtPayload } from "jwt-decode";
-import moment from "moment";
-import { getTokenViaRefreshToken } from "../utils/api";
-
-
-interface AuthContextModel {
-    user:UserInfo, 
-    setUserInfo:React.Dispatch<React.SetStateAction<UserInfo>>,
-    isRefreshing:boolean
-}
-
-export let setRefreshing = ()=>{}
-
-
-export const AuthContext = createContext<AuthContextModel>({
-    user:{
-    isAuthenticated: false,
-    name: "",
-    email: "",
-    picture: "",
-    sub: "",
-    role: ""
-}, 
-setUserInfo:()=>{}, 
-setRefreshing:()=>{},
-isTokenRefreshing: false})
+import { useAuth } from "@adolf94/ar-auth-client";
+import { useMemo } from "react";
 
 export interface UserInfo {
     isAuthenticated: boolean;
+    isLoading: boolean;
     name: string;
     email: string;
     picture: string;
     sub: string;
-    isLoggedIn: ()=>boolean;
+    isLoggedIn: () => boolean;
+    hasScope: (scope: string) => boolean;
     role: string | string[];
 }
-export var navigate = ()=>{}
 
+/**
+ * Bridge hook for Atlas-Auth integration.
+ * Maintains compatibility with legacy components while using @adolf94/ar-auth-client internally.
+ */
+const useLogin = () => {
+    const { user, isAuthenticated, isLoading, login, logout, hasScope } = useAuth();
 
+    const userInfo: UserInfo = useMemo(() => {
+        return {
+            isAuthenticated,
+            isLoading,
+            name: user?.name || "",
+            email: user?.email || "",
+            picture: user?.picture || "",
+            sub: user?.userId || "", // Mapping userId to sub for compatibility
+            isLoggedIn: () => isAuthenticated,
+            hasScope,
+            role: hasScope(`api://${(window as any).webConfig.audience}/admin`) ? ["admin"] : [],
+        };
+    }, [user, isAuthenticated, isLoading, hasScope]);
 
-export const AuthContextProvider = ({children})=>{
-    const [user, setUser] = useState<UserInfo>({
-        isAuthenticated: false,
-        name: "",
-        email: "",
-        picture: "",
-        sub: "",
-        isLoggedIn:()=>false,
-        role: ""
-    })
-    const [isRefreshing, setRefreshingInternal] = useState(false)
-    const [initialized, setInitialized] = useState(false)
-    const isLoggedIn = ()=>{
-        let token = window.sessionStorage.getItem("access_token")
-        let id_token = window.localStorage.getItem("id_token")
-        if(!token || !id_token) return false
-        let tokenJson = JSON.parse(window.atob(token!.split(".")[1]));
-        if (moment().add(1, "minute").isAfter(tokenJson.exp * 1000 )){
-            return false;
-        }
-        return true
-    }
-    useEffect(()=>{
-        (async()=>{
-            let token = await getTokenViaRefreshToken()
-            let id_token = window.localStorage.getItem("id_token")
-            if(!token || !id_token){
-                setInitialized(true)
-                
-                setUser({...user, isLoggedIn})
-                return
-            }
-            const tokenJson = jwtDecode<JwtPayload & UserInfo>(id_token!)
-            console.debug("tokenJson", moment(tokenJson.exp! * 1000).fromNow());
-            if (moment().add(1, "minute").isAfter(tokenJson.exp! * 1000)){
-                console.log("token expired")
-                window.localStorage.removeItem("access_token")
-                setInitialized(true)
-                return
-            }
-
-            setUser({...tokenJson, isAuthenticated: true, isLoggedIn})
-            setInitialized(true)
-        })()
-       
-
-    },[])
-    setRefreshing = setRefreshingInternal;
-    return !initialized ? <>Authenticating</> 
-    :<AuthContext.Provider value={{user, setUser, setRefreshing:setRefreshingInternal, isTokenRefreshing:isRefreshing}}>
-        {children}
-    </AuthContext.Provider>
+    return {
+        user: userInfo,
+        setUser: () => { console.warn("setUser is deprecated; use Atlas-Auth login flow.") },
+        setRefreshing: () => { },
+        isTokenRefreshing: isLoading,
+        login,
+        logout
+    };
 }
 
-const useLogin = ()=>{
-    const {user, setUser, setRefreshing, isTokenRefreshing} = useContext(AuthContext)
+// Keep export for compatibility with main.tsx and App.tsx if needed
+export const AuthContextProvider = ({ children }: { children: React.ReactNode }) => <>{children}</>;
 
-    return {user, setUser,setRefreshing, isTokenRefreshing }
-}
-
-export default useLogin 
-
+export default useLogin;

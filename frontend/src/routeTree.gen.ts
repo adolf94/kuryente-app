@@ -10,9 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UserRouteImport } from './routes/user'
+import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UserIndexRouteImport } from './routes/user/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as UserHistoryRouteImport } from './routes/user/history'
 import { Route as ErrorsDownRouteImport } from './routes/errors/down'
 import { Route as ErrorsDeniedRouteImport } from './routes/errors/denied'
 import { Route as UserBillsIndexRouteImport } from './routes/user/bills/index'
@@ -22,6 +24,11 @@ import { Route as UserBillsBillIdRouteImport } from './routes/user/bills/$billId
 const UserRoute = UserRouteImport.update({
   id: '/user',
   path: '/user',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CallbackRoute = CallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -38,6 +45,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const UserHistoryRoute = UserHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => UserRoute,
 } as any)
 const ErrorsDownRoute = ErrorsDownRouteImport.update({
   id: '/errors/down',
@@ -67,9 +79,11 @@ const UserBillsBillIdRoute = UserBillsBillIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/callback': typeof CallbackRoute
   '/user': typeof UserRouteWithChildren
   '/errors/denied': typeof ErrorsDeniedRoute
   '/errors/down': typeof ErrorsDownRoute
+  '/user/history': typeof UserHistoryRoute
   '/admin': typeof AdminIndexRoute
   '/user/': typeof UserIndexRoute
   '/user/bills/$billId': typeof UserBillsBillIdRoute
@@ -78,8 +92,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/callback': typeof CallbackRoute
   '/errors/denied': typeof ErrorsDeniedRoute
   '/errors/down': typeof ErrorsDownRoute
+  '/user/history': typeof UserHistoryRoute
   '/admin': typeof AdminIndexRoute
   '/user': typeof UserIndexRoute
   '/user/bills/$billId': typeof UserBillsBillIdRoute
@@ -89,9 +105,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/callback': typeof CallbackRoute
   '/user': typeof UserRouteWithChildren
   '/errors/denied': typeof ErrorsDeniedRoute
   '/errors/down': typeof ErrorsDownRoute
+  '/user/history': typeof UserHistoryRoute
   '/admin/': typeof AdminIndexRoute
   '/user/': typeof UserIndexRoute
   '/user/bills/$billId': typeof UserBillsBillIdRoute
@@ -102,9 +120,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/callback'
     | '/user'
     | '/errors/denied'
     | '/errors/down'
+    | '/user/history'
     | '/admin'
     | '/user/'
     | '/user/bills/$billId'
@@ -113,8 +133,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/callback'
     | '/errors/denied'
     | '/errors/down'
+    | '/user/history'
     | '/admin'
     | '/user'
     | '/user/bills/$billId'
@@ -123,9 +145,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/callback'
     | '/user'
     | '/errors/denied'
     | '/errors/down'
+    | '/user/history'
     | '/admin/'
     | '/user/'
     | '/user/bills/$billId'
@@ -135,6 +159,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CallbackRoute: typeof CallbackRoute
   UserRoute: typeof UserRouteWithChildren
   ErrorsDeniedRoute: typeof ErrorsDeniedRoute
   ErrorsDownRoute: typeof ErrorsDownRoute
@@ -148,6 +173,13 @@ declare module '@tanstack/react-router' {
       path: '/user'
       fullPath: '/user'
       preLoaderRoute: typeof UserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/callback': {
+      id: '/callback'
+      path: '/callback'
+      fullPath: '/callback'
+      preLoaderRoute: typeof CallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -170,6 +202,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/user/history': {
+      id: '/user/history'
+      path: '/history'
+      fullPath: '/user/history'
+      preLoaderRoute: typeof UserHistoryRouteImport
+      parentRoute: typeof UserRoute
     }
     '/errors/down': {
       id: '/errors/down'
@@ -210,6 +249,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface UserRouteChildren {
+  UserHistoryRoute: typeof UserHistoryRoute
   UserIndexRoute: typeof UserIndexRoute
   UserBillsBillIdRoute: typeof UserBillsBillIdRoute
   UserBillsCurrentRoute: typeof UserBillsCurrentRoute
@@ -217,6 +257,7 @@ interface UserRouteChildren {
 }
 
 const UserRouteChildren: UserRouteChildren = {
+  UserHistoryRoute: UserHistoryRoute,
   UserIndexRoute: UserIndexRoute,
   UserBillsBillIdRoute: UserBillsBillIdRoute,
   UserBillsCurrentRoute: UserBillsCurrentRoute,
@@ -227,6 +268,7 @@ const UserRouteWithChildren = UserRoute._addFileChildren(UserRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CallbackRoute: CallbackRoute,
   UserRoute: UserRouteWithChildren,
   ErrorsDeniedRoute: ErrorsDeniedRoute,
   ErrorsDownRoute: ErrorsDownRoute,

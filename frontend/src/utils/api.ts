@@ -1,9 +1,8 @@
 import axios, { AxiosError } from "axios";
-import type { AxiosInstance, AxiosRequestConfig } from "axios";
-import moment from "moment";
+import type { AxiosInstance } from "axios";
 // import { enqueueSnackbar } from "notistack";
 import { showLogin } from "../components/Login";
-import { setRefreshing } from "../components/GoogleLoginWrapper";
+import { refreshAccessToken, getUserManager } from "@adolf94/ar-auth-client";
 
 
 
@@ -26,149 +25,124 @@ const processQueue = (error: any, token: string | null = null) => {
 
 
 
-export const getTokenViaRefreshToken = ()=>{
-  let token = window.localStorage.getItem("refresh_token");
-  if(!token) return ""
-  setRefreshing(true)
-  return axios.post(`${window.webConfig.auth}/auth/refresh`,{
-    refresh_token: token,
-    app: 'finance'
-  })
-  .then((e) => {
-    window.sessionStorage.setItem("access_token", e.data.access_token);
-    window.localStorage.setItem("refresh_token", e.data.refresh_token);
-    return e.data.access_token;
-  })
-  .catch(() => {
-    return ""
-  }).finally(()=>{
-    setRefreshing(false)
-  });
-
+export const getTokenViaRefreshToken = async () => {
+  try {
+    const user = await refreshAccessToken();
+    return user?.access_token || "";
+  } catch (error) {
+    console.error("Token refresh failed", error);
+    return "";
+  }
 }
 
-export const getToken = async (force? : boolean, config? : AxiosRequestConfig, axios? : AxiosInstance) => {
-  let token = window.sessionStorage.getItem("access_token");
-  let isExpired = false
-  
+export const getToken = async (force?: boolean, config?: any) => {
+  const userManager = getUserManager();
+  const user = await userManager.getUser();
 
+  let token = user?.access_token;
+  let isExpired = !token || user?.expired;
 
-  if (!token || force){
-      //get token via refresh token  
-        isExpired = true
-  }else{
-    let tokenJson = JSON.parse(window.atob(token!.split(".")[1]));
-  
-    if (moment().add(1, "minute").isAfter(tokenJson.exp * 1000 )){
-      isExpired = true
+  if (!isExpired && !force) {
+    if (config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
   }
 
-
-  if(!isExpired){
-      config.headers.Authorization = `Bearer ${token}`;
-      return config
-  };
   if (isRefreshing) {
     console.warn('REQUEST INTERCEPTOR: Token expired, but refresh is already running. Queueing request...');
-    // Wait for the ongoing refresh to complete
     return new Promise((resolve, reject) => {
-        failedQueue.push({ resolve: (newToken) => {
-            // When resolved, set the new token and allow the request to proceed
+      failedQueue.push({
+        resolve: (newToken: string) => {
+          if (config.headers) {
             config.headers.Authorization = `Bearer ${newToken}`;
-            resolve(config);
-        }, reject });
+          }
+          resolve(config);
+        }, reject
+      });
     });
   }
 
-    isRefreshing = true;
-    console.warn('REQUEST INTERCEPTOR: Token expired. Acquiring lock and initiating login dialog.');
+  isRefreshing = true;
+  console.warn('REQUEST INTERCEPTOR: Token expired. Acquiring lock and initiating login flow.');
 
-    try {
-        //try to get token via refresh first
-        let dialogToken = await getTokenViaRefreshToken()
+  try {
+    let dialogToken = await getTokenViaRefreshToken();
 
-        if(!dialogToken) dialogToken = await showLogin(); 
-                        
-        if (!dialogToken) {
-            // User cancelled
-            processQueue(new Error('Login canceled by user.'));
-            isRefreshing = false;
-            return Promise.reject(new Error('Token refresh aborted (Login canceled).'));
-        }
-
-        // Token acquired. Update global state, release all waiting requests, and update current config.
-        // axios.authHook.setGlobalToken(dialogToken);
-        processQueue(null, dialogToken); 
-
-        config.headers.Authorization = `Bearer ${dialogToken}`;
-        return config;
-
-    } catch (err) {
-        processQueue(err); // Reject all waiting requests
-        return Promise.reject(err);
-    } finally {
-        isRefreshing = false; // Release the lock
+    if (!dialogToken) {
+      // Fallback to library login if refresh fails
+      console.log("Refresh failed, triggering signinRedirect...");
+      await userManager.signinRedirect();
+      // signinRedirect will reload the page, so this promise never resolves
+      return new Promise(() => { });
     }
 
+    processQueue(null, dialogToken);
+    if (config.headers) {
+      config.headers.Authorization = `Bearer ${dialogToken}`;
+    }
+    return config;
+  } catch (err) {
+    processQueue(err);
+    return Promise.reject(err);
+  } finally {
+    isRefreshing = false;
+  }
 };
 
 
 
-const handle401 = async (error: AxiosError, instance: AxiosInstance, addLog: (message: string, status: 'info' | 'success' | 'error' | 'warning') => void): Promise<any> => {
-  const originalRequest = error.config;
+const handle401 = async (error: AxiosError, instance: AxiosInstance): Promise<any> => {
+  const originalRequest: any = error.config;
 
-  // 1. Check if the error is due to a 401 and hasn't been retried
-  if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
+  if (originalRequest && error.response?.status === 401 && !originalRequest._retry) {
+    originalRequest._retry = true;
 
-      // Queue the request logic (Manual P-Queue Logic)
+    if (isRefreshing) {
+      console.warn('401 hit. Refresh already in progress. Queueing request...');
       return new Promise((resolve, reject) => {
-          
-          const retryRequest = async () => {
-              let newAccessToken: string = '';
-
-              if (!isRefreshing) {
-                  isRefreshing = true;
-                  addLog('401 hit. Initiating login (Fallback).', 'error');
-
-                  const dialogToken = await showLogin(); 
-                  
-                  if (!dialogToken) {
-                      const cancelError = new Error('Login canceled by user.');
-                      processQueue(cancelError);
-                      throw cancelError;
-                  }
-
-                  newAccessToken = dialogToken;
-                  processQueue(null, newAccessToken);
-              } else {
-                  addLog('401 hit. Request queued (Refresh in progress).', 'warning');
-                  // Wait for the ongoing refresh
-                  return new Promise<string>((res, rej) => {
-                      failedQueue.push({ resolve: res, reject: rej });
-                  }).then(token => { newAccessToken = token; });
-              }
-
-              // Retry the original request with the new token
-              originalRequest.headers = originalRequest.headers || {};
-              originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-              addLog(`Retrying ${originalRequest.url} with new token.`, 'info');
-              
-              // The retry call returns a promise that resolves the result of the second request
-              return instance.get(originalRequest.url || '', originalRequest);
-
-          };
-          
-          retryRequest().then(resolve).catch(err => {
-              isRefreshing = false; // Ensure lock is released if we failed the retry
-              reject(err);
-          });
-
+        failedQueue.push({
+          resolve: (token: string) => {
+            originalRequest.headers['Authorization'] = `Bearer ${token}`;
+            resolve(instance(originalRequest));
+          },
+          reject
+        });
       });
+    }
+
+    isRefreshing = true;
+    console.warn('401 hit. Initiating token refresh flow.');
+
+    try {
+      // 1. Attempt silent refresh
+      let newToken = await getTokenViaRefreshToken();
+
+      // 2. Fallback to interactive login if refresh fails
+      if (!newToken) {
+        console.warn('Silent refresh failed. Prompting for interactive login.');
+        const dialogToken = await showLogin();
+        if (!dialogToken) {
+          const cancelError = new Error('Login canceled by user.');
+          processQueue(cancelError);
+          throw cancelError;
+        }
+        newToken = dialogToken as string;
+      }
+
+      // 3. Process the waiting queue and retry the original request
+      processQueue(null, newToken);
+      originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+      console.log(`Retrying ${originalRequest.url} with new token.`);
+      return instance(originalRequest);
+    } catch (err) {
+      processQueue(err);
+      return Promise.reject(err);
+    } finally {
+      isRefreshing = false;
+    }
   }
 
-  // Default error handling (non-401 or final retry failure)
   return Promise.reject(error);
 };
 
@@ -178,9 +152,9 @@ const api = axios.create({
   baseURL: window.webConfig.api,
 });
 
-api.interceptors.request.use(async (config: AxiosRequestConfig) => {
+api.interceptors.request.use(async (config: any) => {
   if (config.preventAuth) return config;
-  return getToken(false, config, axios)
+  return getToken(false, config)
 });
 
 
@@ -189,20 +163,17 @@ api.interceptors.request.use(async (config: AxiosRequestConfig) => {
 
 
 api.interceptors.response.use(
-    async (data) => {
-        return data;
-    },
-    (err) => {
-        if (!!err?.response) {
-            if (err.response.status === 401 && !err.request.config?.ignore401) {
-
-                handle401(err, axios, ()=>{})
-            }
-            if(err.response.status === 500){
-                // enqueueSnackbar("Something went wrong!. Contact Developer", {variant:"error", autoHideDuration: 3000});
-            }
-        }
-    return Promise.reject(err)
+  (data) => data,
+  async (err) => {
+    if (!!err?.response) {
+      if (err.response.status === 401 && !err.config?.ignore401) {
+        return handle401(err, api);
+      }
+      if (err.response.status === 500) {
+        // Handle 500 if needed
+      }
+    }
+    return Promise.reject(err);
   },
 );
 

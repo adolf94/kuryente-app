@@ -1,15 +1,13 @@
-import { Box, Button, Dialog, DialogActions, DialogContent, MenuItem, TextField } from "@mui/material"
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField, useMediaQuery, useTheme } from "@mui/material"
 import moment from "moment"
 import { useEffect, useState, type JSX } from "react"
-import api from "../../../utils/api"
 import { useConfirm } from "material-ui-confirm"
 import React from "react"
 import { useReadingMutation } from "../../../repositories/repository"
 
-
-
-
 const AddReadingDialog = ({onAdded,data, allowedTypes, children,admin}: {onAdded : (item: any)=>any, data:any[], allowedTypes:string[], children: JSX.Element, admin?: boolean})=>{
+    const theme = useTheme()
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
     const [open,setOpen] = useState(false)
     const [form, setForm] = useState({
         date:moment().add(-1,"day").format("YYYY-MM-DD"),
@@ -58,10 +56,11 @@ const AddReadingDialog = ({onAdded,data, allowedTypes, children,admin}: {onAdded
 
     return <>
         {React.cloneElement(children,{onClick:()=>setOpen(true)})}
-        <Dialog open={open} onClose={()=>setOpen(false)}>
+        <Dialog open={open} onClose={()=>setOpen(false)} fullWidth maxWidth="xs" fullScreen={isMobile}>
+            <DialogTitle>Add Utility Reading</DialogTitle>
             <DialogContent>
-                <Box sx={{py:1}}>
-                    <TextField type="date" label="Date" fullWidth size="small" value={form.date} onChange={e=>setForm({...form, date:e.target.value})}/>
+                <Box sx={{py:1, mt: 0.5}}>
+                    <TextField type="date" label="Date" fullWidth size="small" slotProps={{ inputLabel: { shrink: true } }} value={form.date} onChange={e=>setForm({...form, date:e.target.value})}/>
                 </Box>
                 <Box sx={{py:1}}>
                     <TextField label="Type" select fullWidth size="small" value={form.type} onChange={e=>setForm({...form, type:e.target.value})}>
@@ -85,7 +84,8 @@ const AddReadingDialog = ({onAdded,data, allowedTypes, children,admin}: {onAdded
                 </Box>
             </DialogContent>
             <DialogActions>
-                <Button variant="contained" color="success" fullWidth onClick={addReading}>Add</Button>
+                <Button variant="text" color="inherit" onClick={()=>setOpen(false)}>Cancel</Button>
+                <Button variant="contained" color="success" onClick={addReading}>Add</Button>
             </DialogActions>
         </Dialog>
     </>

@@ -1,4 +1,5 @@
-import { Box, Button, CircularProgress, Dialog, DialogContent } from "@mui/material"
+import { Box, Button, CircularProgress, Dialog, DialogContent, IconButton, useMediaQuery, useTheme } from "@mui/material"
+import { Close } from "@mui/icons-material"
 import React, { useRef, useState } from "react"
 import api from "../../../utils/api"
 import { confirm } from "material-ui-confirm"
@@ -6,10 +7,12 @@ import { confirm } from "material-ui-confirm"
 
 const AddMasterBillDialog = (props)=>{
 
-    const fileRef = useRef(null)
+    const fileRef = useRef<HTMLInputElement>(null)
     const [pdf,setPdf] = useState(null)
     const [open,setOpen] = useState("")
     const [url,setUrl] = useState("")
+    const theme = useTheme()
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
     const handleFileChange = (event)=>{
         
@@ -25,16 +28,16 @@ const AddMasterBillDialog = (props)=>{
 
     const onUploadClicked = async ()=>{
         
-        fileRef.current!.value = ""
+        if (fileRef.current) fileRef.current.value = ""
         // if(!user.isLoggedIn()){
         //     await api.get("/get_timer_info")
         // }
-        fileRef.current!.click()
+        fileRef.current?.click()
     }
 
     const onUpload = ()=>{
         const formData = new FormData();
-        formData.append('file', pdf);
+        formData.append('file', pdf!);
 
         api.post('/upload_bill', formData, {
             headers: {
@@ -42,13 +45,14 @@ const AddMasterBillDialog = (props)=>{
             },
             // Optional: Track upload progress for the UI
             onUploadProgress: (progressEvent) => {
-                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total!);
                 console.log(`Upload progress: ${percentCompleted}%`);
             }
         }).then(e=>{
             confirm({
                 title: "Upload Successful",
             })
+            setOpen("")
         })
     }
 
@@ -74,12 +78,13 @@ const AddMasterBillDialog = (props)=>{
                 <CircularProgress size={100}/>
             </DialogContent>
         </Dialog>
-        <Dialog open={open == "preview"} maxWidth="xl" fullWidth onClose={()=>setOpen("")}>
+        <Dialog open={open == "preview"} maxWidth="xl" fullWidth fullScreen={isMobile} onClose={()=>setOpen("")}>
             <DialogContent >
-                <Box sx={{textAlign:"right",pb:2}}>
-                    <Button variant="contained" onClick={onUpload}>Upload</Button>
+                <Box sx={{display: 'flex', justifyContent:"space-between", alignItems: 'center', pb:2}}>
+                    {isMobile && <IconButton onClick={()=>setOpen("")}><Close/></IconButton>}
+                    <Button variant="contained" fullWidth={isMobile} onClick={onUpload}>Upload</Button>
                 </Box>
-                <Box width="100%" sx={{height:"70vh"}}>
+                <Box width="100%" sx={{height: isMobile ? "calc(100vh - 100px)" : "70vh"}}>
                     <embed
                         src={url}
                         
@@ -95,4 +100,4 @@ const AddMasterBillDialog = (props)=>{
 
 }
 
-export default AddMasterBillDialog
+export default AddMasterBillDialog
