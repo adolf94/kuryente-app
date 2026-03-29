@@ -23,7 +23,15 @@ jobs:
         uses: restackio/update-json-file-action@2.1
         with:
           file: frontend/public/config.json
-          fields: '{"api":"${{ vars.API }}", "redirectUri":"${{ vars.REDIRECT_URI }}", "auth":"${{ vars.AUTH_API }}"}'
+          fields: |
+            {
+              "api": "${{ vars.API }}",
+              "redirectUri": "${{ vars.REDIRECT_URI }}",
+              "auth": "${{ vars.AUTH_API }}",
+              "authority": "${{ vars.AUTHORITY }}",
+              "clientId": "${{ vars.CLIENT_ID }}",
+              "audience": "${{ vars.AUDIENCE }}"
+            }
           
       - name: Move/Rename config.json to js
         run: |

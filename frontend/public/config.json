@@ -4,5 +4,5 @@
     "authority": "https://auth.adolfrey.com/api",
     "audience": "kuryente-api",
     "clientId": "kuryente-ui",
-    "redirectUri": "https://locahost:5173"
+    "redirectUri": "https://localhost:5173/"
 }
