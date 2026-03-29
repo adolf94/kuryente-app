@@ -57,14 +57,6 @@ jobs:
               cat config.json >> config.js
         working-directory: frontend/dist
 
-      - name: Get Id Token
-        uses: actions/github-script@v6
-        id: idtoken
-        with:
-           script: |
-               const coredemo = require('@actions/core')
-               return await coredemo.getIDToken()
-           result-encoding: string
 
       - name: Build And Deploy
         id: builddeploy
