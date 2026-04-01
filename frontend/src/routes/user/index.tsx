@@ -1,7 +1,8 @@
 import { ArrowForward, Payments, BarChart, Home, AdminPanelSettings, Assistant } from '@mui/icons-material'
-import { Box, Button, Card, Container, Grid, List, Stack, Typography, useTheme, Paper, useMediaQuery, ButtonGroup, Popover } from '@mui/material'
+import { Box, Button, Card, Container, Grid, List, Stack, Typography, useTheme, Paper, useMediaQuery, ButtonGroup, Popover, Divider, Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import moment from 'moment'
+import numeral from 'numeral'
 import { useMemo } from 'react'
 import { useAllBills, useAllPayments, useAllReading } from '../../repositories/repository'
 import BillCard, { UnbilledBillCard, LoadingBillCard } from '../../components/index/user/BillCard'
@@ -9,9 +10,11 @@ import PaymentCard, { LoadingPaymentCard } from '../../components/index/user/Pay
 import ReadingRow, { LoadingReadingRow } from '../../components/index/user/ReadingRow'
 import useLogin from '../../components/GoogleLoginWrapper'
 import UserHistoryView from '../../components/index/user/UserHistoryView'
-import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material'
-import { Close as CloseIcon, WaterDrop, ElectricBolt } from '@mui/icons-material'
+import { Close as CloseIcon, WaterDrop, ElectricBolt, AccessTime } from '@mui/icons-material'
 import { useState, useContext, useEffect } from 'react'
+import ImageModal from '../../components/index/ImageModal'
+import Timer from '../../components/index/Timer'
+import { anonApi } from '../../utils/apiOld'
 import { ChatContext } from '../user'
 import { LinePlot, MarkPlot, AreaPlot } from '@mui/x-charts/LineChart'
 import { ChartsXAxis } from '@mui/x-charts/ChartsXAxis'
@@ -30,8 +33,22 @@ const RouteComponent = () => {
     const [popoverAnchor, setPopoverAnchor] = useState<null | HTMLElement>(null);
     const showHelp = Boolean(popoverAnchor);
 
+    const [timer, setTimer] = useState({
+        DisconnectTime: "",
+        ExtendedTimer: ""
+    })
+
     useEffect(() => {
-        const timer = setTimeout(() => {
+        anonApi.get("/get_timer_info").then(res => {
+            setTimer(res.data)
+        })
+        const interval = setInterval(() => {
+            anonApi.get("/get_timer_info").then(res => {
+                setTimer(res.data)
+            })
+        }, 60000) // update every minute
+
+        const timerPop = setTimeout(() => {
             const btn = document.getElementById('ai-assistant-button');
             if (btn) {
                 setPopoverAnchor(btn);
@@ -39,7 +56,10 @@ const RouteComponent = () => {
                 setTimeout(() => setPopoverAnchor(prev => prev?.id === 'ai-assistant-button' ? null : prev), 6000);
             }
         }, 2000);
-        return () => clearTimeout(timer);
+        return () => {
+            clearTimeout(timerPop);
+            clearInterval(interval);
+        };
     }, []);
 
     const { data: payments = [], isLoading: payLoading } = useAllPayments({ unsetPlaceholder: true })
@@ -125,13 +145,69 @@ const RouteComponent = () => {
             </Stack>
 
             {/* Minimalist Welcome Header - Optimized for mobile density */}
-            <Box mb={{ xs: 2, md: 6 }}>
-                <Typography variant={isMobile ? "h5" : "h3"} fontWeight="900" color="text.primary" sx={{ mb: isMobile ? 0.5 : 1 }}>
-                    Hello, {user?.name || 'Client'}
-                </Typography>
-                <Typography variant={isMobile ? "body2" : "h6"} color="text.secondary" fontWeight="400">
-                    Here's a quick look at your utility account status.
-                </Typography>
+            <Box mb={{ xs: 2, md: 6 }} display="flex" flexDirection={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'flex-end' }} gap={2}>
+                <Box>
+                    <Typography variant={isMobile ? "h5" : "h3"} fontWeight="900" color="text.primary" sx={{ mb: isMobile ? 0.5 : 1 }}>
+                        Hello, {user?.name || 'Client'}
+                    </Typography>
+                    <Typography variant={isMobile ? "body2" : "h6"} color="text.secondary" fontWeight="400">
+                        Here's a quick look at your utility account status.
+                    </Typography>
+                </Box>
+
+                {/* Subtle Status Bar */}
+                <Paper variant="outlined" sx={{ 
+                    px: { xs: 2, md: 3 }, 
+                    py: { xs: 1.5, md: 1.5 }, 
+                    borderRadius: 4, 
+                    display: 'flex', 
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'stretch', sm: 'center' }, 
+                    gap: { xs: 1.5, md: 4 },
+                    bgcolor: '#FFFFFF',
+                    borderColor: 'divider',
+                    width: { xs: '100%', md: 'auto' },
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+                }}>
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                        <Box sx={{ 
+                            width: 44, 
+                            height: 44, 
+                            borderRadius: '50%', 
+                            bgcolor: 'primary.50', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            flexShrink: 0
+                        }}>
+                            <AccessTime sx={{ color: 'primary.main', fontSize: 24 }} />
+                        </Box>
+                        <Box>
+                            <Typography variant="caption" color="text.secondary" fontWeight="700" sx={{ letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                                SERVICE STATUS
+                            </Typography>
+                            <Box sx={{ '.timer-container': { p: 0, '& .MuiTypography-h1': { fontSize: '1.4rem', fontWeight: 900, m: 0, color: 'text.primary' } } }}>
+                                <Timer date={timer?.ExtendedTimer || timer?.DisconnectTime} />
+                            </Box>
+                        </Box>
+                    </Stack>
+
+                    <Divider orientation={isMobile ? "horizontal" : "vertical"} flexItem variant="middle" />
+
+                    <Box sx={{ 
+                        flexGrow: 1, 
+                        display: 'flex', 
+                        justifyContent: { xs: 'stretch', sm: 'flex-start' },
+                        '& > *': { width: { xs: '100%', sm: 'auto' } } 
+                    }}>
+                        <ImageModal 
+                            timer={timer} 
+                            onComplete={(data: any) => {
+                                setTimer(data.new_timer);
+                            }}
+                        />
+                    </Box>
+                </Paper>
             </Box>
 
             {/* Hero Section: Two Primary Cards - Tighter spacing for mobile */}

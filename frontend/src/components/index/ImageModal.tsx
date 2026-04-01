@@ -268,9 +268,20 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
                 onClick={() => onUploadClicked()}
                 fullWidth={false}
                 size="large"
-                sx={{ borderRadius: 2, px: 4, py: 1.5, mb: 2 }}
+                sx={{ 
+                    borderRadius: 3, 
+                    px: 3, 
+                    py: 1.2, 
+                    textTransform: 'none', 
+                    fontWeight: 800,
+                    boxShadow: '0 8px 16px rgba(33, 150, 243, 0.2)',
+                    '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 12px 20px rgba(33, 150, 243, 0.3)'
+                    }
+                }}
             >
-                Upload Payment Proof
+                Extend Service
             </Button>
             <Typography variant='body2' color="text.secondary" display="block">
                 <b>Current Rate: </b>
