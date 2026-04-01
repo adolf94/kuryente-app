@@ -26,32 +26,33 @@ def get_jwks():
             return None
     return _jwks_cache
 
-def verify_custom_jwt(auth_header: str | None) -> dict | None:
+def verify_custom_jwt(auth_header: str | None) -> tuple[dict | None, str | None]:
     """
     Verifies an OIDC token from the Authorization header using Atlas-Auth.
+    Returns (decoded_token, error_reason).
     """
-    if not auth_header or not auth_header.startswith("Bearer "):
-        logging.error("Authorization header is missing or invalid.")
-        return None
+    if not auth_header:
+        return None, "Authorization header is missing."
+    
+    if not auth_header.startswith("Bearer "):
+        return None, "Authorization header must start with 'Bearer '."
 
     token = auth_header.split(" ")[1]
     jwks = get_jwks()
     if not jwks:
-        return None
+        return None, "Could not fetch JWKS from authority."
 
     try:
         # Get the unverified header to find the kid (Key ID)
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
         if not kid:
-            logging.error("Token header missing 'kid'.")
-            return None
+            return None, "Token header missing 'kid'."
 
         # Find the matching JWK
         jwk = next((key for key in jwks["keys"] if key["kid"] == kid), None)
         if not jwk:
-            logging.error(f"No matching JWK found for kid: {kid}")
-            return None
+            return None, f"No matching JWK found for kid: {kid}"
 
         # Create public key from JWK
         public_key = RSAAlgorithm.from_jwk(jwk)
@@ -70,16 +71,13 @@ def verify_custom_jwt(auth_header: str | None) -> dict | None:
             issuer=authority
         )
 
-        return decoded_token
+        return decoded_token, None
     except jwt.ExpiredSignatureError:
-        logging.error("Token has expired.")
-        return None
+        return None, "Token has expired."
     except jwt.InvalidTokenError as e:
-        logging.error(f"Invalid token: {e}")
-        return None
+        return None, f"Invalid token: {e}"
     except Exception as e:
-        logging.error(f"Error verifying Atlas-Auth JWT: {e}")
-        return None
+        return None, f"Error verifying Atlas-Auth JWT: {str(e)}"
 
 def has_scope(user: dict | None, scope_name: str) -> bool:
     """

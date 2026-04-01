@@ -5,16 +5,16 @@ import api from "../../../utils/api"
 import { confirm } from "material-ui-confirm"
 
 
-const AddMasterBillDialog = (props)=>{
+const AddMasterBillDialog = (props: any) => {
 
     const fileRef = useRef<HTMLInputElement>(null)
-    const [pdf,setPdf] = useState(null)
+    const [pdf, setPdf] = useState<File | null>(null)
     const [open,setOpen] = useState("")
     const [url,setUrl] = useState("")
     const theme = useTheme()
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
-    const handleFileChange = (event)=>{
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         
         if (event.target.files && event.target.files[0]) {
             setPdf(event.target.files[0])
@@ -35,7 +35,8 @@ const AddMasterBillDialog = (props)=>{
         fileRef.current?.click()
     }
 
-    const onUpload = ()=>{
+    const onUpload = () => {
+        setOpen("loading")
         const formData = new FormData();
         formData.append('file', pdf!);
 
@@ -48,11 +49,18 @@ const AddMasterBillDialog = (props)=>{
                 const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total!);
                 console.log(`Upload progress: ${percentCompleted}%`);
             }
-        }).then(e=>{
+        }).then(() => {
             confirm({
                 title: "Upload Successful",
             })
             setOpen("")
+        }).catch(err => {
+            console.error(err)
+            setOpen("preview")
+            confirm({
+                title: "Upload Failed",
+                description: "There was an error uploading the file. Please try again."
+            })
         })
     }
 
@@ -74,8 +82,8 @@ const AddMasterBillDialog = (props)=>{
                 },
             }
             }}>
-            <DialogContent>
-                <CircularProgress size={100}/>
+            <DialogContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CircularProgress size={80} thickness={4} />
             </DialogContent>
         </Dialog>
         <Dialog open={open == "preview"} maxWidth="xl" fullWidth fullScreen={isMobile} onClose={()=>setOpen("")}>
@@ -84,7 +92,7 @@ const AddMasterBillDialog = (props)=>{
                     {isMobile && <IconButton onClick={()=>setOpen("")}><Close/></IconButton>}
                     <Button variant="contained" fullWidth={isMobile} onClick={onUpload}>Upload</Button>
                 </Box>
-                <Box width="100%" sx={{height: isMobile ? "calc(100vh - 100px)" : "70vh"}}>
+                <Box width="100%" sx={{height: isMobile ? "calc(100vh - 80px)" : "85vh"}}>
                     <embed
                         src={url}
                         

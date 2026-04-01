@@ -97,7 +97,7 @@ def extract_bill_info(localpath):
         consumption: int - the consumption (current_reading - previous_reading)
         prev_balance: decimal - The previous unpaid bill
         current : decimal - The current charges for the bill
-        price_per_unit : decimal - the price per unit (current / consumption) 
+        price_per_unit : decimal - The price per unit. **CRITICAL**: Do NOT use the rate stated on the bill; instead, ALWAYS calculate it as (current_charges / consumption).
         payments : decimal - The total payments recorded
         total_balance : decimal - the total balance  (prev_balance - payments + current)
         filename: string - create a filename for this file : \{type\}_\{bill_date in YYYYMMDD\}.pdf

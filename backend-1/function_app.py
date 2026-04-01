@@ -28,7 +28,20 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', "jfif"}  # Allowed file types
 
 cached_files = {}
 
+def unauthorized_response(reason: str):
+    return func.HttpResponse(
+        "",
+        status_code=401,
+        headers={"X-Auth-Reason": reason}
+    )
 
+def forbidden_response(scope: str):
+    reason = f"User missing required scope: {scope}"
+    return func.HttpResponse(
+        "",
+        status_code=403,
+        headers={"X-Auth-Reason": reason}
+    )
 
 def allowed_file(filename):
     """Checks if the file extension is allowed."""
@@ -44,9 +57,9 @@ def health(req: func.HttpRequest) -> func.HttpResponse:
 def upload_proof(req: func.HttpRequest) -> func.HttpResponse:
     #TODO : restrict filetype, filesize
 
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse(status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
 
     print(req.files["file"])
     file = req.files["file"]
@@ -107,12 +120,12 @@ def upload_proof(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="files/{id}", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
 def get_img_by_id(req: func.HttpRequest) -> func.HttpResponse:
     
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse("", status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
 
-    if(not has_scope(user, "admin") ):
-        return func.HttpResponse("", status_code=403)
+    if not has_scope(user, "admin"):
+        return forbidden_response("admin")
     
 
     id = req.route_params.get("id")
@@ -134,12 +147,12 @@ def get_img_by_id(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="record_payment", methods=[func.HttpMethod.POST], auth_level=func.AuthLevel.ANONYMOUS)
 def record_payment(req: func.HttpRequest) -> func.HttpResponse:
     
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse("", status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
 
-    if(not has_scope(user, "admin") ):
-        return func.HttpResponse("", status_code=403)
+    if not has_scope(user, "admin"):
+        return forbidden_response("admin")
     
     body = req.get_json()
 
@@ -179,12 +192,12 @@ def record_payment(req: func.HttpRequest) -> func.HttpResponse:
 def upload_bill(req: func.HttpRequest) -> func.HttpResponse:
     #TODO : restrict filetype, filesize
 
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse(status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
 
-    if(not has_scope(user, "admin") ):
-        return func.HttpResponse("", status_code=403)
+    if not has_scope(user, "admin"):
+        return forbidden_response("admin")
     
     print(req.files["file"])
     file = req.files["file"]
@@ -240,12 +253,12 @@ def upload_bill(req: func.HttpRequest) -> func.HttpResponse:
 def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
 
     #validations
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse("", status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
 
-    if(not has_scope(user, "admin") ):
-        return func.HttpResponse("", status_code=403)
+    if not has_scope(user, "admin"):
+        return forbidden_response("admin")
 
     body = req.get_json()
     item = get_item_by_id("PaymentsUploads", body["id"])
@@ -361,12 +374,11 @@ def create_bill(req:func.HttpRequest) -> func.HttpResponse:
 @app.route(route="add_reading", auth_level=func.AuthLevel.ANONYMOUS)
 def add_reading(req: func.HttpRequest) -> func.HttpResponse:
     
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    body = req.get_json()
-    if(user == None):
-        return func.HttpResponse(status_code=401)
-    if(not has_scope(user, "admin") ):
-        return func.HttpResponse(status_code=403, mimetype="application/json")
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
+    if not has_scope(user, "admin"):
+        return forbidden_response("admin")
     
     after = get_reading_by_date(body["date"], body["type"], "asc")
     before = get_reading_by_date(body["date"], body["type"], "desc")

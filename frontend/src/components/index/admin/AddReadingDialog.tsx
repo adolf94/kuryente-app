@@ -13,7 +13,9 @@ const AddReadingDialog = ({onAdded,data, allowedTypes, children,admin}: {onAdded
         date:moment().add(-1,"day").format("YYYY-MM-DD"),
         type:"Manila Water",
         reading:0,
+        master_reading:0,
         consumption:0,
+        master_consumption:0,
         per_unit:0
     })
     const [prev,setPrev] = useState<any>(null)
@@ -37,18 +39,19 @@ const AddReadingDialog = ({onAdded,data, allowedTypes, children,admin}: {onAdded
             description: "Add reading?",
             confirmationText: "Yes, Add",
             cancellationText:"Cancel"
-         }).then(async e=>{
-            if(!e.confirmed) return
-             let output = await add_reading.mutateAsync(form)
+         }).then(async () => {
+             let output = await add_reading.mutateAsync(form as any)
                     setOpen(false)
                     onAdded(output)
                     setForm({date:moment().add(-1,"day").format("YYYY-MM-DD"),
                         type:"Manila Water",
                         reading:0,
+                        master_reading:0,
                         consumption:0,
+                        master_consumption:0,
                         per_unit:0
                     })
-        })
+        }).catch(() => {})
          
 
 
@@ -69,15 +72,26 @@ const AddReadingDialog = ({onAdded,data, allowedTypes, children,admin}: {onAdded
                     </TextField>
                 </Box>
                 <Box sx={{py:1}}>
-                    <TextField type="number" label="Reading" size="small" fullWidth value={form.reading} 
-                        onBlur={e=>{
+                    <TextField type="number" label="Sub-meter Reading" size="small" fullWidth value={form.reading} 
+                        onBlur={()=>{
                             let consumption = prev == null ? form.consumption: form.reading - prev.reading
-                            setForm({...form, consumption})
+                            let master_consumption = prev == null? form.master_consumption : form.master_reading - (prev.master_reading || 0)
+                            setForm({...form, consumption, master_consumption})
                         }}  
-                        onChange={e=>setForm({...form, reading:Number.parseInt(e.target.value)})}/>
+                        onChange={e=>setForm({...form, reading:Number.parseInt(e.target.value) || 0})}/>
                 </Box>
-                <Box sx={{pt:1}}>
-                    <TextField type="number" label="Consumption" size="small"   disabled={!admin} fullWidth value={form.consumption} onChange={e=>setForm({...form, consumption:Number.parseFloat(e.target.value)})}/>
+                <Box sx={{py:1}}>
+                    <TextField type="number" label="Master Meter Reading" size="small" fullWidth value={form.master_reading} 
+                        onBlur={()=>{
+                            let consumption = prev == null ? form.consumption: form.reading - prev.reading
+                            let master_consumption = prev == null? form.master_consumption : form.master_reading - (prev.master_reading || 0)
+                            setForm({...form, consumption, master_consumption})
+                        }}  
+                        onChange={e=>setForm({...form, master_reading:Number.parseInt(e.target.value) || 0})}/>
+                </Box>
+                <Box sx={{pt:1, display: 'flex', gap: 1}}>
+                    <TextField type="number" label="Consumption" size="small" disabled={!admin} fullWidth value={form.consumption} onChange={e=>setForm({...form, consumption:Number.parseFloat(e.target.value)})}/>
+                    <TextField type="number" label="Master Cons." size="small" disabled={!admin} fullWidth value={form.master_consumption} onChange={e=>setForm({...form, master_consumption:Number.parseFloat(e.target.value)})}/>
                 </Box>
                 <Box sx={{py:1}}>
                     <TextField type="number" label="Price per unit" disabled={!admin} size="small" fullWidth value={form.per_unit} onChange={e=>setForm({...form, per_unit:Number.parseFloat(e.target.value)})}/>

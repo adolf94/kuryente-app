@@ -66,8 +66,8 @@ const AdminBillDetailsDialog = ({ bill }: AdminBillDetailsDialogProps) => {
                     </IconButton>
                 </DialogTitle>
 
-                <DialogContent dividers sx={{ p: 0 }}>
-                    <Grid container sx={{ minHeight: isMobile ? 'auto' : '75vh' }}>
+                <DialogContent dividers sx={{ p: 0, height: isMobile ? 'calc(100vh - 80px)' : '85vh', overflow: 'hidden' }}>
+                    <Grid container sx={{ height: '100%' }}>
                         {/* Left Side: PDF Viewer */}
                         <Grid size={{ xs: 12, md: 8 }} sx={{ height: isMobile ? '70vh' : '100%', borderRight: { xs: 'none', md: '1px solid' }, borderBottom: { xs: '1px solid', md: 'none' }, borderColor: 'divider' }}>
                             {loading ? (
@@ -92,7 +92,7 @@ const AdminBillDetailsDialog = ({ bill }: AdminBillDetailsDialogProps) => {
                         </Grid>
 
                         {/* Right Side: Data Summary */}
-                        <Grid size={{ xs: 12, md: 4 }} sx={{ p: 3, bgcolor: '#FAFAFA' }}>
+                        <Grid size={{ xs: 12, md: 4 }} sx={{ p: 3, bgcolor: '#FAFAFA', height: '100%', overflowY: 'auto' }}>
                             <Typography variant="overline" color="text.secondary" fontWeight="700">EXTRACTED DATA</Typography>
                             <Stack spacing={2.5} sx={{ mt: 2 }}>
                                 <Box>

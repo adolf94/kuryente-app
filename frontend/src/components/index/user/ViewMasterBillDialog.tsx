@@ -52,7 +52,7 @@ const AddMasterBillDialog = (props: any) => {
                 </IconButton>
             </DialogTitle>
             
-            <DialogContent dividers sx={{ p: 0, height: isMobile ? 'calc(100vh - 64px)' : '75vh' }}>
+            <DialogContent dividers sx={{ p: 0, height: isMobile ? 'calc(100vh - 80px)' : '85vh', overflow: 'hidden' }}>
                 {loading ? 
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                         <CircularProgress size={60} />

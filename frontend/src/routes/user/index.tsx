@@ -75,6 +75,11 @@ const RouteComponent = () => {
         }
     }, [readings])
 
+    const isFirstFiveDays = moment().date() <= 5;
+    const recentBills = useMemo(() => {
+        return [...bills].sort((a: any, b: any) => a.id < b.id ? 1 : -1).slice(0, 2)
+    }, [bills])
+
     return (
         <Container maxWidth="lg" sx={{ pt: { xs: 2, md: 6 }, pb: { xs: 14, md: 6 } }}>
             {/* Quick Navigation */}
@@ -82,10 +87,10 @@ const RouteComponent = () => {
                 <Button
                     size="small"
                     variant="text"
-                    color="inherit"
+                    color="primary"
                     startIcon={<Home sx={{ fontSize: 18 }} />}
                     onClick={() => navigate({ to: "/" })}
-                    sx={{ fontWeight: 700, opacity: 0.7, '&:hover': { opacity: 1 } }}
+                    sx={{ fontWeight: 700 }}
                 >
                     Home
                 </Button>
@@ -101,6 +106,18 @@ const RouteComponent = () => {
                         Admin
                     </Button>
                 )}
+                <Button
+                    size="small"
+                    variant="text"
+                    color="error"
+                    onClick={() => {
+                        (window as any).localStorage.clear();
+                        window.location.href = "/";
+                    }}
+                    sx={{ fontWeight: 700 }}
+                >
+                    Logout
+                </Button>
             </Stack>
 
             {/* Minimalist Welcome Header - Optimized for mobile density */}
@@ -118,23 +135,41 @@ const RouteComponent = () => {
                 <Grid size={{ xs: 12, md: 6 }}>
                     <Box sx={{ height: '100%' }}>
                         <Typography variant="subtitle2" fontWeight="800" color="primary.main" sx={{ mb: isMobile ? 1 : 2, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                            Current Usage (Estimated)
+                            {isFirstFiveDays ? "Latest Statement" : "Current Usage (Estimated)"}
                         </Typography>
-                        {payLoading ? <LoadingBillCard /> : <UnbilledBillCard payments={payments} />}
+                        {payLoading || billLoading ? <LoadingBillCard /> :
+                            (isFirstFiveDays ? (
+                                recentBills[0] ? <BillCard item={recentBills[0]} date={recentBills[0].id} /> : (
+                                    <Card sx={{ p: 4, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
+                                        <Typography variant="body2" color="text.secondary">No statements available.</Typography>
+                                    </Card>
+                                )
+                            ) : (
+                                <UnbilledBillCard payments={payments} />
+                            ))
+                        }
                     </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
                     <Box sx={{ height: '100%', mt: { xs: 2, md: 0 } }}>
                         <Typography variant="subtitle2" fontWeight="800" color="text.secondary" sx={{ mb: isMobile ? 1 : 2, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                            Latest Statement
+                            {isFirstFiveDays ? "Previous Statement" : "Latest Statement"}
                         </Typography>
-                        {billLoading ? <LoadingBillCard /> : latestBill ? (
-                            <BillCard item={latestBill} date={latestBill.id} />
-                        ) : (
-                            <Paper sx={{ p: 4, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider' }}>
-                                <Typography color="text.secondary">No statements available yet.</Typography>
-                            </Paper>
-                        )}
+                        {billLoading ? <LoadingBillCard /> :
+                            (isFirstFiveDays ? (
+                                recentBills[1] ? <BillCard item={recentBills[1]} date={recentBills[1].id} /> : (
+                                    <Paper sx={{ p: 4, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider' }}>
+                                        <Typography color="text.secondary">No previous statements available.</Typography>
+                                    </Paper>
+                                )
+                            ) : (
+                                latestBill ? <BillCard item={latestBill} date={latestBill.id} /> : (
+                                    <Paper sx={{ p: 4, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'grey.50', border: '1px dashed', borderColor: 'divider' }}>
+                                        <Typography color="text.secondary">No statements available yet.</Typography>
+                                    </Paper>
+                                )
+                            ))
+                        }
                     </Box>
                 </Grid>
             </Grid>

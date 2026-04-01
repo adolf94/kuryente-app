@@ -383,7 +383,7 @@ def get_readings(date : str, month_count:int = 1):
     result = list(items)
     output = []
     for item in result:
-        key_map = ["date","type","reading", "consumption","per_unit"]
+        key_map = ["date","type","reading", "consumption","per_unit", "master_reading", "master_consumption"]
         new_output = {old_k: item[old_k] for old_k in key_map if old_k in item}
         new_output["cost"] = new_output["consumption"] * new_output["per_unit"]
         output.append(new_output)
@@ -411,7 +411,7 @@ def get_master_bills(date: str,  month_count:int = 1):
     output = []
 
     for item in result:
-        key_map = ["type","billing_start","billing_end","previous_reading", "current_reading","consumption","prev_balance","current","price_per_unit","payments", "total_balance", "file_id"]
+        key_map = ["type","billing_start","billing_end","previous_reading", "current_reading","consumption","prev_balance","current","price_per_unit","payments", "total_balance", "file_id", "bill_date"]
         new_output = {old_k: item[old_k] for old_k in key_map if old_k in item}
         output.append(new_output)
 
