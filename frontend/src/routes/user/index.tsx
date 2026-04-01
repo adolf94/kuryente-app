@@ -89,7 +89,10 @@ const RouteComponent = () => {
                     variant="text"
                     color="primary"
                     startIcon={<Home sx={{ fontSize: 18 }} />}
-                    onClick={() => navigate({ to: "/" })}
+                    onClick={() => {
+                        sessionStorage.setItem('manual_home_visit', 'true');
+                        navigate({ to: "/" });
+                    }}
                     sx={{ fontWeight: 700 }}
                 >
                     Home
@@ -112,6 +115,7 @@ const RouteComponent = () => {
                     color="error"
                     onClick={() => {
                         (window as any).localStorage.clear();
+                        (window as any).sessionStorage.clear();
                         window.location.href = "/";
                     }}
                     sx={{ fontWeight: 700 }}

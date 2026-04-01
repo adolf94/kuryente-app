@@ -90,8 +90,13 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
             confirm(data)
             onComplete(res.data)
         }).catch(ex => {
+            const status = ex?.response?.status;
+            let message = "Something went wrong. Kindly send via FB / Messenger";
+
+
             confirm({
-                description: "Something went wrong. Kindly send via FB / Messenger",
+                title: "Error occurred",
+                description: message,
                 hideCancelButton: true
             })
             setShow("")
@@ -136,10 +141,10 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
             </DialogContent>
         </Dialog>
 
-        <Dialog 
-            open={show === "upload"} 
-            maxWidth="md" 
-            fullWidth 
+        <Dialog
+            open={show === "upload"}
+            maxWidth="md"
+            fullWidth
             fullScreen={isMobile}
             onClose={handleCancel}
         >
@@ -219,7 +224,7 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
                                         />
                                     </Alert>
                                 )}
-                                
+
                                 {result.recipientBank.toLowerCase().indexOf("gcash") !== -1 && (
                                     <Alert severity="success" sx={{ borderRadius: 2 }}>
                                         <strong>GCash Detected:</strong> System will automatically verify this payment. Ensure funds are received before submitting.

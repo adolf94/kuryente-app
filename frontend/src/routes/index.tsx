@@ -18,6 +18,12 @@ const Index = () => {
     const { user, login } = useLogin()
     const navigate = useNavigate({ from: '/' })
 
+    useEffect(() => {
+        // Only auto-redirect if they haven't explicitly asked to stay on the landing page
+        if (user.isLoggedIn() && !sessionStorage.getItem('manual_home_visit')) {
+            navigate({ to: '/user' })
+        }
+    }, [user.isLoggedIn(), navigate])
 
     useEffect(() => {
         anonApi.get("/get_timer_info").then(res => {

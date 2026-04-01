@@ -293,7 +293,10 @@ function RouteComponent() {
                 variant="text"
                 color="primary"
                 startIcon={<Home sx={{ fontSize: 18 }} />}
-                onClick={() => router.navigate({ to: "/" })}
+                onClick={() => {
+                    sessionStorage.setItem('manual_home_visit', 'true');
+                    router.navigate({ to: "/" });
+                }}
                 sx={{ fontWeight: 700 }}
             >
                 Landing Page
@@ -317,6 +320,7 @@ function RouteComponent() {
                 startIcon={<Logout sx={{ fontSize: 18 }} />}
                 onClick={() => {
                     (window as any).localStorage.clear();
+                    (window as any).sessionStorage.clear();
                     window.location.href = "/";
                 }}
                 sx={{ fontWeight: 700 }}
