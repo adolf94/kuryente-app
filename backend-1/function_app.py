@@ -592,7 +592,14 @@ def turn_off_trigger(myTimer: func.TimerRequest) -> None:
 
     current_timer = get_latest_from_container("TimerDetails")
     disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ").astimezone(datetime.timezone.utc)
-    if(disconnect_time <= datetime.datetime.now(datetime.UTC)):
+    
+    threshold_time = disconnect_time
+    if "ExtendedTimer" in current_timer:
+        extended_time = datetime.datetime.strptime(current_timer["ExtendedTimer"], "%Y-%m-%dT%H:%M:%SZ").astimezone(datetime.timezone.utc)
+        if extended_time > threshold_time:
+            threshold_time = extended_time
+
+    if threshold_time <= datetime.datetime.now(datetime.UTC):
         send_sms(os.environ.get("SMS_NUMBER"), "KURYENTEAPP: Switch was turned off due to expiration of timer.")
         switch_device(False)
 
