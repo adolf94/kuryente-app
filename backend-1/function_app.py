@@ -308,9 +308,9 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
 def payments(req:func.HttpRequest) -> func.HttpResponse:
 
     #validations
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse("", status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
     
     
     items = get_all_container("PaymentsUploads")
@@ -321,9 +321,9 @@ def payments(req:func.HttpRequest) -> func.HttpResponse:
 def bills(req:func.HttpRequest) -> func.HttpResponse:
 
     #validations
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse("", status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
     
   
     items = get_all_container("Bills")
@@ -334,9 +334,9 @@ def bills(req:func.HttpRequest) -> func.HttpResponse:
 def master_bills(req:func.HttpRequest) -> func.HttpResponse:
 
     #validations
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse("", status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
     
     
     items = get_all_container("MasterBills")
@@ -351,9 +351,9 @@ def master_bills(req:func.HttpRequest) -> func.HttpResponse:
 @app.route(route="readings",methods=[func.HttpMethod.GET],  auth_level=func.AuthLevel.ANONYMOUS)
 def readings(req: func.HttpRequest) -> func.HttpResponse:
     
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse("", status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
 
     items = get_all_container("Readings")
     return func.HttpResponse(json.dumps(items),mimetype="application/json",  status_code=200)
@@ -380,6 +380,7 @@ def add_reading(req: func.HttpRequest) -> func.HttpResponse:
     if not has_scope(user, "admin"):
         return forbidden_response("admin")
     
+    body = req.get_json()
     after = get_reading_by_date(body["date"], body["type"], "asc")
     before = get_reading_by_date(body["date"], body["type"], "desc")
     if "id" not in body: body["id"] =  uuid7str()
@@ -407,18 +408,15 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
 
 
 
-    user = verify_custom_jwt(req.headers.get("Authorization"))
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
     body = req.get_json()
-    if(user == None):
-        return func.HttpResponse(status_code=401)
+    if user is None:
+        return unauthorized_response(error)
     
     added_by = { 
-        "name" : user["name"],
-        "email" : user["email"]
+        "name" : user.get("name") or user.get("email") or user.get("userId") or "Anonymous User",
+        "email" : user.get("email") or "no-email@kuryente.app"
     }
-
-
-    body = req.get_json()
     if body["fileId"] not in cached_files:
          return func.HttpResponse(json.dumps({"error": "File information is not found or expired. Please try again."}), mimetype="application/json", status_code=400)
 
@@ -546,9 +544,9 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
 def get_master_bills(req:func.HttpRequest) -> func.HttpResponse:
     
 
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse(status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
     
     date = req.route_params.get("date")
 
@@ -560,22 +558,22 @@ def get_master_bills(req:func.HttpRequest) -> func.HttpResponse:
 @app.route(route="support_ai/chat", auth_level=func.AuthLevel.ANONYMOUS, methods=[func.HttpMethod.POST])
 def chat_with_ai(req:func.HttpRequest) -> func.HttpResponse:
 
-    user = verify_custom_jwt(req.headers.get("Authorization"))
-    if(user == None):
-        return func.HttpResponse(status_code=401)
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
     
     body = req.get_json()
 
     chat_id = body.get("chat_id", "")
 
-    chat_client = SupportChatManager(user["userId"])
+    chat_client = SupportChatManager(user.get("userId") or user.get("sub") or "unknown")
 
     message = body.get("message", "")
     if(message == ""): return func.HttpResponse(status_code=400)
     response, new_id, escalated = chat_client.chat(message, chat_id)
 
     if("i-PM si Kuya AR sa" in response and escalated == False):
-        chat_client.notif_escalation(user.get("name", user["userId"]))
+        chat_client.notif_escalation(user.get("name") or user.get("userId") or user.get("sub") or "Unknown User")
 
     
     output = {

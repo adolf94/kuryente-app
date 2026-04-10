@@ -18,7 +18,7 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
     const [file, setFile] = useState<any>(null)
     const [result, setResult] = useState<any>(null)
     const [confirmation, setConfirmation] = useState()
-    const [submitLoading, setLoading] = useState(false)
+    const [browseLoading, setBrowseLoading] = useState(false)
     const fileRef = useRef<HTMLInputElement>(null)
     const [show, setShow] = useState("")
     const [agree, setAgree] = useState(false)
@@ -120,11 +120,19 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
     }, [result, timer])
 
     const onUploadClicked = async () => {
-        if (fileRef.current) fileRef.current.value = ""
-        if (!user.isLoggedIn()) {
-            await anonApi.get("/get_timer_info")
+        setBrowseLoading(true)
+        try {
+            if (fileRef.current) fileRef.current.value = ""
+            if (!user.isLoggedIn()) {
+                await anonApi.get("/get_timer_info")
+            }
+            if (fileRef.current) fileRef.current.click()
+        } catch (error) {
+            console.error("Failed to trigger upload browse:", error)
+        } finally {
+            // Stop loading when the browser dialog is (hopefully) open
+            setBrowseLoading(false)
         }
-        if (fileRef.current) fileRef.current.click()
     }
 
     return <>
@@ -261,9 +269,9 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
                 accept="image/*"
             />
             <Button
-                component="label"
                 variant="contained"
                 disabled={isTokenRefreshing}
+                loading={browseLoading}
                 startIcon={<CloudUpload />}
                 onClick={() => onUploadClicked()}
                 fullWidth={false}

@@ -379,14 +379,6 @@ function RouteComponent() {
                                 </Typography>
                             </Box>
 
-                            {(bill?.ourCurrent || 0) > 0 && (
-                                <Box p={3} bgcolor="#F8FAFC">
-                                    <Typography variant='body2' color="text.secondary">House Usage share (Ours)</Typography>
-                                    <Typography variant='subtitle1' fontWeight="600" align="right">
-                                        + PHP {numeral(bill?.ourCurrent).format("0,0.00")}
-                                    </Typography>
-                                </Box>
-                            )}
 
                             <Box p={3} bgcolor={bill?.balance > 0 ? "error.50" : "success.50"}>
                                 <Typography variant='subtitle1' fontWeight="700" color={bill?.balance > 0 ? "error.main" : "text.primary"}>
