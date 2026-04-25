@@ -10,24 +10,18 @@ import {
     Divider, 
     Tabs, 
     Tab, 
-    List,
     useTheme,
     Paper,
     Avatar,
-    Grid,
     useMediaQuery
 } from '@mui/material'
 import { 
     ReceiptLong, 
     Payment, 
-    Speed, 
-    CheckCircle, 
-    Pending, 
-    Error, 
     ElectricBolt, 
-    WaterDrop,
-    ArrowForwardIos
+    WaterDrop
 } from '@mui/icons-material'
+import ViewImageDialog from '../admin/ViewImageDialog'
 import moment from 'moment'
 import numeral from 'numeral'
 import { useAllBills, useAllPayments, useAllReading } from '../../../repositories/repository'
@@ -63,9 +57,9 @@ const UserHistoryView = () => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-    const { data: bills = [], isLoading: billLoading } = useAllBills({ unsetPlaceholder: true })
-    const { data: payments = [], isLoading: payLoading } = useAllPayments({ unsetPlaceholder: true })
-    const { data: readings = [], isLoading: readLoading } = useAllReading({ unsetPlaceholder: true })
+    const { data: bills = [] } = useAllBills({ unsetPlaceholder: true })
+    const { data: payments = [] } = useAllPayments({ unsetPlaceholder: true })
+    const { data: readings = [] } = useAllReading({ unsetPlaceholder: true })
 
     const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
@@ -282,7 +276,7 @@ const UserHistoryView = () => {
             {/* Payments Tab */}
             <CustomTabPanel value={tabValue} index={2}>
                 <Stack spacing={2} pb={4}>
-                    {payments.sort((a, b) => a.DateAdded < b.DateAdded ? 1 : -1).map((pay, i) => (
+                    {(payments as any[]).sort((a: any, b: any) => a.DateAdded < b.DateAdded ? 1 : -1).map((pay: any, i: number) => (
                         <Card key={i} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 3 }}>
                             <CardContent>
                                 <Stack direction="row" spacing={2} alignItems="center">
@@ -293,11 +287,19 @@ const UserHistoryView = () => {
                                         <Typography variant="subtitle1" fontWeight={800}>
                                             P {numeral(pay.File?.amount).format("0,0.00")}
                                         </Typography>
-                                        <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                                        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ display: 'block' }}>
                                             {moment(pay.DateAdded).format("MMM DD, YYYY • hh:mm A")}
                                         </Typography>
+                                        <Typography variant="caption" color="text.disabled" fontWeight={700}>
+                                            By: {pay.PaymentBy?.name || pay.PaymentBy?.email || pay.PaymentBy || 'Unknown'}
+                                        </Typography>
                                     </Box>
-                                    {getStatusChip(pay.status || 'Approved')}
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        {pay.File?.fileId && (
+                                            <ViewImageDialog fileId={pay.File.fileId} />
+                                        )}
+                                        {getStatusChip(pay.Status || 'Approved')}
+                                    </Stack>
                                 </Stack>
                             </CardContent>
                         </Card>

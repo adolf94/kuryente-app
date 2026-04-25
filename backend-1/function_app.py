@@ -124,8 +124,6 @@ def get_img_by_id(req: func.HttpRequest) -> func.HttpResponse:
     if user is None:
         return unauthorized_response(error)
 
-    if not has_scope(user, "admin"):
-        return forbidden_response("admin")
     
 
     id = req.route_params.get("id")

@@ -11,7 +11,7 @@ import api from '../../../utils/api'
 import ViewMasterBillDialog from '../../../components/index/user/ViewMasterBillDialog'
 
 export const Route = createFileRoute('/user/bills/current')({
-  component: RouteComponent,
+    component: RouteComponent,
 })
 
 function RouteComponent() {
@@ -50,7 +50,7 @@ function RouteComponent() {
         <Box mb={4}>
             <Button
                 startIcon={<ArrowBack />}
-                onClick={() => router.history.back()}
+                onClick={() => router.navigate({ to: '/user' })}
                 sx={{ mb: 2, color: 'text.secondary', '&:hover': { color: 'primary.main', bgcolor: 'transparent' } }}
             >
                 Back to Dashboard
@@ -91,7 +91,7 @@ function RouteComponent() {
                             </Box>
 
                             <Box p={3} bgcolor="#F8FAFC">
-                                <Typography variant='body2' color="text.secondary">Utility Usage</Typography>
+                                <Typography variant='body2' color="text.secondary">Utility Usage Cost</Typography>
                                 <Typography variant='subtitle1' fontWeight="600" align="right" color="text.disabled">
                                     + PHP 0.00
                                 </Typography>
@@ -148,9 +148,9 @@ function RouteComponent() {
                     <List disablePadding>
                         {currentPayments.length === 0 && (
                             <ListItem>
-                                <ListItemText 
+                                <ListItemText
                                     sx={{ py: 3, textAlign: 'center' }}
-                                    primary={<Typography variant="body2" color="text.secondary">No payments recorded for this period yet.</Typography>} 
+                                    primary={<Typography variant="body2" color="text.secondary">No payments recorded for this period yet.</Typography>}
                                 />
                             </ListItem>
                         )}

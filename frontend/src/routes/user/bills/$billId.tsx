@@ -332,7 +332,7 @@ function RouteComponent() {
         <Box mb={4}>
             <Button
                 startIcon={<ArrowBack />}
-                onClick={() => router.history.back()}
+                onClick={() => router.navigate({ to: '/user' })}
                 sx={{ mb: 2, color: 'text.secondary', '&:hover': { color: 'primary.main', bgcolor: 'transparent' } }}
             >
                 Back to Dashboard
@@ -373,7 +373,7 @@ function RouteComponent() {
                             </Box>
 
                             <Box p={3} bgcolor="#F8FAFC">
-                                <Typography variant='body2' color="text.secondary">Utility Usage Cost (Yours)</Typography>
+                                <Typography variant='body2' color="text.secondary">Utility Usage Cost</Typography>
                                 <Typography variant='subtitle1' fontWeight="600" align="right">
                                     + PHP {numeral(bill?.current).format("0,0.00")}
                                 </Typography>
