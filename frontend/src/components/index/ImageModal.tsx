@@ -124,7 +124,7 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
         try {
             if (fileRef.current) fileRef.current.value = ""
             if (!user.isLoggedIn()) {
-                await anonApi.get("/get_timer_info")
+                await api.get("/get_timer_info")
             }
             if (fileRef.current) fileRef.current.click()
         } catch (error) {
@@ -276,11 +276,11 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
                 onClick={() => onUploadClicked()}
                 fullWidth={false}
                 size="large"
-                sx={{ 
-                    borderRadius: 3, 
-                    px: 3, 
-                    py: 1.2, 
-                    textTransform: 'none', 
+                sx={{
+                    borderRadius: 3,
+                    px: 3,
+                    py: 1.2,
+                    textTransform: 'none',
                     fontWeight: 800,
                     boxShadow: '0 8px 16px rgba(33, 150, 243, 0.2)',
                     '&:hover': {

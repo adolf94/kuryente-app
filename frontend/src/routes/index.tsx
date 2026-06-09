@@ -1,7 +1,7 @@
-import { Box, Button, Card, CardContent, Grid, Typography, Alert, List, ListItem, ListItemIcon, ListItemText, Divider, Container, Paper, Stack } from '@mui/material'
+import { Box, Button, Card, CardContent, Grid, Typography, Alert, List, ListItem, ListItemIcon, ListItemText, Divider, Container, Paper, Stack, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import Timer from '../components/index/Timer'
-import { CheckCircle, AccountBalanceWallet, AccessTimeFilled, Shield, Google, Telegram, Fingerprint } from "@mui/icons-material"
+import { CheckCircle, AccountBalanceWallet, AccessTimeFilled, Shield, Google, Telegram, Fingerprint, ElectricBolt, WaterDrop } from "@mui/icons-material"
 import { useEffect, useState } from 'react'
 import api from '../utils/api'
 import ImageModal from '../components/index/ImageModal'
@@ -10,11 +10,13 @@ import { anonApi } from '../utils/apiOld'
 
 const Index = () => {
 
-    const [timer, setTimer] = useState({
+    const [timer, setTimer] = useState<any>({
         DisconnectTime: "",
         ExtendedTimer: ""
     })
+    const [timerLoading, setTimerLoading] = useState(true)
     const [loading, setLoading] = useState(false)
+    const [promptOpen, setPromptOpen] = useState(false)
     const { user, login } = useLogin()
     const navigate = useNavigate({ from: '/' })
 
@@ -26,8 +28,14 @@ const Index = () => {
     }, [user.isLoggedIn(), navigate])
 
     useEffect(() => {
+        setTimerLoading(true)
         anonApi.get("/get_timer_info").then(res => {
             setTimer(res.data)
+            if (res.data?.DisableReload) {
+                setPromptOpen(true)
+            }
+        }).finally(() => {
+            setTimerLoading(false)
         })
     }, [])
 
@@ -72,15 +80,51 @@ const Index = () => {
                                 Upload your payment receipt screenshot. Processing is instant for GCash transfers.
                             </Typography>
 
-                            <Box mt="auto" sx={{ bgcolor: '#F8FAFC', border: '1px dashed', borderColor: 'divider', borderRadius: 2, p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
-                                <ImageModal
-                                    timer={timer}
-                                    onComplete={(data: any) => {
-                                        setTimer(data.new_timer);
-                                        navigate({ to: '/user' });
-                                    }}
-                                />
-                            </Box>
+                            {timerLoading ? (
+                                <Box mt="auto" sx={{ bgcolor: '#F8FAFC', border: '1px dashed', borderColor: 'divider', borderRadius: 2, p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                                    <Button variant="contained" color="primary" loading={true} sx={{ borderRadius: 3, px: 3, py: 1.2 }}>
+                                        Extend Service
+                                    </Button>
+                                </Box>
+                            ) : timer?.DisableReload ? (
+                                <Box mt="auto" sx={{ bgcolor: '#F8FAFC', border: '1px dashed', borderColor: 'divider', borderRadius: 2, p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                                    <Button variant="contained" color="primary" disabled onClick={() => setPromptOpen(true)} sx={{ borderRadius: 3, px: 3, py: 1.2 }}>
+                                        Extend Service
+                                    </Button>
+                                    <Dialog open={promptOpen} onClose={() => setPromptOpen(false)} maxWidth="xs" fullWidth>
+                                        <DialogTitle sx={{ fontWeight: 'bold', color: 'error.main', textAlign: 'center' }}>Reloading / Extending is disabled.</DialogTitle>
+                                        <DialogContent>
+                                            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 3, mb: 3, p: 2, bgcolor: '#F8FAFC', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                                                <Box component="a" href="https://www.meralco.com.ph/residential/electric-service/start-or-modify" target="_blank" rel="noopener noreferrer" sx={{ display: 'flex', transition: 'transform 0.2s', '&:hover': { transform: 'scale(1.05)' } }}>
+                                                    <img src="/meralco.png" alt="Meralco" style={{ height: 48, objectFit: 'contain' }} />
+                                                </Box>
+                                                <Divider orientation="vertical" flexItem />
+                                                <Box component="a" href="https://www.manilawater.com/customers/customer-faq" target="_blank" rel="noopener noreferrer" sx={{ display: 'flex', transition: 'transform 0.2s', '&:hover': { transform: 'scale(1.05)' } }}>
+                                                    <img src="/manilawater.jpeg" alt="Manila Water" style={{ height: 48, objectFit: 'contain', borderRadius: 4 }} />
+                                                </Box>
+                                            </Box>
+                                            <DialogContentText color="text.primary" textAlign="center">
+                                                Please call Meralco at <strong>16211</strong> and Manila Water at <strong>1627</strong> to avail of separate utility services.
+                                            </DialogContentText>
+                                        </DialogContent>
+                                        <DialogActions sx={{ p: 2, pt: 0 }}>
+                                            <Button onClick={() => setPromptOpen(false)} color="primary" variant="contained" disableElevation fullWidth>
+                                                Accept
+                                            </Button>
+                                        </DialogActions>
+                                    </Dialog>
+                                </Box>
+                            ) : (
+                                <Box mt="auto" sx={{ bgcolor: '#F8FAFC', border: '1px dashed', borderColor: 'divider', borderRadius: 2, p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+                                    <ImageModal
+                                        timer={timer}
+                                        onComplete={(data: any) => {
+                                            setTimer(data.new_timer);
+                                            navigate({ to: '/user' });
+                                        }}
+                                    />
+                                </Box>
+                            )}
                         </CardContent>
                     </Card>
                 </Grid>

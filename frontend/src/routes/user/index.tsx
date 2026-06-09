@@ -1,5 +1,5 @@
 import { ArrowForward, Payments, BarChart, Home, AdminPanelSettings, Assistant } from '@mui/icons-material'
-import { Box, Button, Card, Container, Grid, List, Stack, Typography, useTheme, Paper, useMediaQuery, ButtonGroup, Popover, Divider, Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material'
+import { Box, Button, Card, Container, Grid, List, Stack, Typography, useTheme, Paper, useMediaQuery, ButtonGroup, Popover, Divider, Dialog, DialogContent, DialogTitle, IconButton, Alert } from '@mui/material'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import moment from 'moment'
 import numeral from 'numeral'
@@ -33,7 +33,7 @@ const RouteComponent = () => {
     const [popoverAnchor, setPopoverAnchor] = useState<null | HTMLElement>(null);
     const showHelp = Boolean(popoverAnchor);
 
-    const [timer, setTimer] = useState({
+    const [timer, setTimer] = useState<any>({
         DisconnectTime: "",
         ExtendedTimer: ""
     })
@@ -200,12 +200,18 @@ const RouteComponent = () => {
                         justifyContent: { xs: 'stretch', sm: 'flex-start' },
                         '& > *': { width: { xs: '100%', sm: 'auto' } } 
                     }}>
-                        <ImageModal 
-                            timer={timer} 
-                            onComplete={(data: any) => {
-                                setTimer(data.new_timer);
-                            }}
-                        />
+                        {timer?.DisableReload ? (
+                            <Alert severity="warning" sx={{ borderRadius: 2, py: 0, display: 'flex', alignItems: 'center', width: '100%' }}>
+                                Reloading / Extending is disabled.
+                            </Alert>
+                        ) : (
+                            <ImageModal 
+                                timer={timer} 
+                                onComplete={(data: any) => {
+                                    setTimer(data.new_timer);
+                                }}
+                            />
+                        )}
                     </Box>
                 </Paper>
             </Box>
