@@ -148,43 +148,36 @@ def get_file_by_id(id):
     return item
 
 def check_notifs_gcash(data):
-    db = get_db(os.environ["FINANCE_DB"])
-    container = db.get_container_client("HookMessages")
+    from deps.finance_api import search_ingestions
 
-    datebefore = utcstr_to_datetime(data["datetime"]) - timedelta(minutes=10)
-    dateafter = utcstr_to_datetime(data["datetime"]) + timedelta(minutes=10)
+    # The ingester API searches by amount + received_at range; the GCash
+    # specific checks (app package, transaction type, sender account) are
+    # applied client-side over the returned ingestion records.
+    dt = utcstr_to_datetime(data["datetime"])
+    start = (dt - timedelta(minutes=10)).astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = (dt + timedelta(minutes=10)).astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-
-    strBefore = datebefore.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    strAfter = dateafter.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    partition = utcstr_to_datetime(data["datetime"]).astimezone(tz_default).strftime("%Y-%m-01")
-
-    items = container.query_items("""
-            select * from c where c.JsonData.notif_pkg = 'com.globe.gcash.android'
-            and c.JsonData.timestamp > @strBefore
-            and c.JsonData.timestamp < @strAfter
-            and c.MonthKey = @partition
-        """, parameters = [
-            {"name":"@strBefore", "value":strBefore},
-            {"name":"@strAfter", "value":strAfter},
-            {"name":"@partition", "value":partition}
-        ], partition_key=partition)
+    results = search_ingestions(round(float(data["amount"]), 2), start, end)
 
     def filter_fn(row):
-        if float(row["ExtractedData"]["amount"]) != float(data["amount"]): return False
-        if row["ExtractedData"]["matchedConfig"] == "notif_gcash_receive": 
+        ai = row.get("ai_parsed") or {}
+        if ai.get("amount") is None or float(ai["amount"]) != float(data["amount"]):
+            return False
+
+        pkg = str((row.get("raw_payload") or {}).get("notif_pkg") or "")
+        app = str(ai.get("application") or "")
+        if "gcash" not in pkg.lower() and "gcash" not in app.lower():
+            return False
+
+        ttype = str(ai.get("transaction_type") or "").lower()
+        sender = str(ai.get("sender_account_number") or "")
+        if "instapay" in ttype:
+            return sender[-4:] == str(data["senderAcct"])[-4:]
+        if "receive" in ttype:
             return True
-        
-        if row["ExtractedData"]["matchedConfig"] == "notif_gcash_instapay" \
-            and row["ExtractedData"]["senderAcct"] == data["senderAcct"][-4]:
-                return True
         return False
 
-    filtered = filter(filter_fn, items)
-
-    
-
+    filtered = list(filter(filter_fn, results))
     return filtered
 
 def create_monthly_bill(date):
