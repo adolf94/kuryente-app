@@ -25,8 +25,8 @@ def get_access_token():
         f"{authority}/connect/token",
         data={
             "grant_type": "client_credentials",
-            "client_id": os.environ["FINANCE_API_CLIENT_ID"],
-            "client_secret": os.environ["FINANCE_API_CLIENT_SECRET"],
+            "client_id": os.environ["ATLAS_AUTH_AUDIENCE"],
+            "client_secret": os.environ["ATLAS_AUTH_SECRET"],
             "scope": INGESTIONS_SCOPE,
         },
         timeout=30,
