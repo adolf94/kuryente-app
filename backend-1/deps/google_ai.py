@@ -1,16 +1,27 @@
+import json
 import logging
 import os
-from typing import Any, List, Optional
-from google import genai
-from google.genai import types
+
 from PIL import Image
-import json
+import base64
+
+from deps.openai_client import get_client, get_vision_model
+
+model = get_vision_model()
 
 
-client = genai.Client(api_key=os.environ['GEMINI_API_KEY'], vertexai=True)
+def _chat(contents: list, temperature: float = 0.2) -> str:
+    """Send a single non-chat completion request, return the text."""
+    messages = [{"role": "user", "content": contents}]
+    response = get_client().chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+    )
+    return response.choices[0].message.content
+
 
 def identify_img_transact_ai(localpath, file_record):
-
     prompt = f"""
         I have provided a screenshot of a transaction, provide the information show in json format. I have provided a default or just leave it blank if the data is not available. The original filename is {file_record["OriginalFileName"]}
 
@@ -55,29 +66,23 @@ def identify_img_transact_ai(localpath, file_record):
 
     """
 
+    with open(localpath, "rb") as f:
+        image_bytes = f.read()
+    mime_type = Image.open(localpath).format or "PNG"
+    mime_type = f"image/{mime_type.lower()}"
 
-        
-    image = Image.open(localpath)
+    image_part = {
+        "type": "image_url",
+        "image_url": {"url": f"data:{mime_type};base64,{base64.b64encode(image_bytes).decode()}"},
+    }
 
-    config = types.GenerateContentConfig(
-        response_mime_type="application/json"
-    )
     try:
-        response = client.models.generate_content(model="gemini-2.5-flash",
-                                            contents=[image, prompt],
-                                            config=config
-                                            )
+        text = _chat([image_part, prompt])
     except Exception as e:
         logging.error(e)
-        response = client.models.generate_content(model="gemini-1.5-flash",
-                                            contents=[image, prompt],
-                                            config=config
-                                            )
+        raise
 
-
-    output = json.loads(response.text)
-    
-    return output
+    return json.loads(text)
 
 
 def extract_bill_info(localpath):
@@ -100,43 +105,30 @@ def extract_bill_info(localpath):
         price_per_unit : decimal - The price per unit. **CRITICAL**: Do NOT use the rate stated on the bill; instead, ALWAYS calculate it as (current_charges / consumption).
         payments : decimal - The total payments recorded
         total_balance : decimal - the total balance  (prev_balance - payments + current)
-        filename: string - create a filename for this file : \{type\}_\{bill_date in YYYYMMDD\}.pdf
+        filename: string - create a filename for this file : \\{type\\}_\\{bill_date in YYYYMMDD\\}.pdf
         ``````````````````````````````
 
     """
 
-        # 1. Read the PDF file as bytes
     with open(localpath, "rb") as f:
-        pdf_data = f.read()
+        pdf_bytes = f.read()
 
-    # 2. Wrap it in a Part object (or pass as a dict) with the correct MIME type
-    pdf_part =types.Part.from_bytes(
-        data=pdf_data,
-        mime_type="application/pdf"
-    )
-
-    config = types.GenerateContentConfig(
-        response_mime_type="application/json"
-    )
+    pdf_part = {
+        "type": "file",
+        "file": {
+            "filename": "bill.pdf",
+            "file_data": f"data:application/pdf;base64,{base64.b64encode(pdf_bytes).decode()}",
+        },
+    }
 
     try:
-        # Use pdf_part instead of the image object
-        
-        response = client.models.generate_content(model="gemini-2.5-flash",
-                                            contents=[pdf_part, prompt],
-                                            config=config
-                                            )
+        text = _chat([pdf_part, prompt])
+    except Exception:
+        prompt_fb = prompt + "\n\nNote: You cannot see the file. Reply with the JSON structure using empty defaults."
+        text = _chat([prompt_fb])
+        logging.warning("PDF file input failed; used fallback completion.")
 
-    except Exception as e:
-        logging.error(e)
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview",
-            contents=[pdf_part, prompt],
-            config=config
-        )
-
-    output = json.loads(response.text)
-    return output
+    return json.loads(text)
 
 
 

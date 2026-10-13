@@ -11,6 +11,7 @@ Werkzeug
 uuid7
 azure.storage.blob
 google-genai
+openai
 python-dateutil
 Pillow
 pytz

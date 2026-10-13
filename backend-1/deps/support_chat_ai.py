@@ -4,9 +4,11 @@ import os
 from typing import Any, List, Optional
 from urllib import request
 import zoneinfo
-from google import genai
+import inspect
+
+from openai import OpenAI
 from deps.automate_notif import send_notification
-from google.genai import types
+from deps.openai_client import get_client, get_model
 from datetime import datetime, timezone, timedelta
 
 from uuid_extensions import uuid7, uuid7str
@@ -15,7 +17,6 @@ from deps.cosmosdb import debug_tool, get_db, get_latest_timer,  get_readings,ge
 _chat_cache = {}
 
 
-client = genai.Client(api_key=os.environ['GEMINI_API_KEY'], vertexai=True)
 manila_time = datetime.now(timezone(timedelta(hours=8))).strftime("%A, %B %d, %Y")
 
 support_sysprompt = f"""# **SYSTEM PROMPT: Kuryente App Support AI**
@@ -102,34 +103,65 @@ support_sysprompt = f"""# **SYSTEM PROMPT: Kuryente App Support AI**
 
   """
 
-billing_functions = [
-    types.FunctionDeclaration(
-        name="get_latest_timer",
-        description="Returns the most recent disconnection time and the current Daily Rate.",
-        parameters=types.Schema(type="OBJECT", properties={})
-    ),
-    types.FunctionDeclaration(
-        name="get_complete_bill",
-        description="Fetches a complete summary including sub-meter readings and master bill details for a specific month.",
-        parameters=types.Schema(
-            type="OBJECT",
-            properties={
-                "date": types.Schema(type="STRING", description="Date in 'YYYY-MM-DD' format.")
-            },
-            required=["date"]
-        )
-    )
-]
 
-# Wrap them in a Tool object
-billing_tools = types.Tool(function_declarations=billing_functions)
+def _esc(o):
+    return o
+
+
+def _to_openai_tool(fn):
+    """
+    Wraps a python function into an OpenAI function-tool schema,
+    auto-generating parameter descriptions from datatypes/docstrings.
+    """
+    sig = inspect.signature(fn)
+    props = {}
+    required = []
+    for pname, p in sig.parameters.items():
+        if p.default is inspect.Parameter.empty:
+            required.append(pname)
+        ann = p.annotation if p.annotation is not inspect.Parameter.empty else "string"
+
+        if ann is str or ann == "str":
+            js = "string"
+        elif ann is int or ann == "int":
+            js = "integer"
+        elif ann is float or ann == "float":
+            js = "number"
+        elif ann is bool or ann == "bool":
+            js = "boolean"
+        else:
+            js = "string"
+
+        props[pname] = {"type": js}
+    doc = inspect.getdoc(fn) or ""
+    return {
+        "type": "function",
+        "function": {
+            "name": fn.__name__,
+            "description": doc.split("\n")[0],
+            "parameters": {
+                "type": "object",
+                "properties": props,
+                "required": required,
+            },
+        },
+    }
+
+
+# Build OpenAI tool schemas from cosmosdb tool functions
+detect_tools = [
+    _to_openai_tool(get_latest_timer),
+    _to_openai_tool(get_complete_bill),
+    _to_openai_tool(get_readings),
+    _to_openai_tool(get_master_bills),
+]
 
 callable_map = {
     "get_latest_timer": get_latest_timer,
-    "get_complete_bill": get_complete_bill
+    "get_complete_bill": get_complete_bill,
+    "get_readings": get_readings,
+    "get_master_bills": get_master_bills,
 }
-
-
 
 
 class SupportChatManager:
@@ -139,23 +171,19 @@ class SupportChatManager:
     Integrated with helper methods for Cosmos DB serialization.
     """
     
-    def __init__(self, user_id: str, system_prompt: str = support_sysprompt, tools = [billing_tools]):
+    def __init__(self, user_id: str, system_prompt: str = support_sysprompt, tools = detect_tools):
         """
-        Initializes the GenAI Client.
+        Initializes the OpenAI client.
         """
-        self.client = client
-        self.model_id = "gemini-2.0-flash"
+        self.client = get_client()
+        self.model_id = get_model()
         self.system_prompt = system_prompt
-        # The new SDK expects tools passed as a list of functions or types.Tool
         self.tools = tools
         self.user_id = user_id
         self.chat_id = ""
 
-    def chat(self, user_message: str, chat_id:str):
-        """
-        Runs a chat turn using the new Client.chats.create interface.
-        """
-        # Create a chat session with config for tools and system instruction# 1. ROUTER: Detect if we need BOTH or just ONE
+    def chat(self, user_message: str, chat_id: str):
+        # 1. ROUTER: Detect if we need web search or not
         search_keywords = ['rates', 'meralco', 'manila water', 'balita', 'taas', 'bakit', "why"]
         billing_keywords = ['reading', 'magkano', 'bayad', 'timer', "daily", "day"]
         self.chat_id = chat_id
@@ -163,57 +191,88 @@ class SupportChatManager:
         needs_search = any(w in user_message.lower() for w in search_keywords)
         needs_billing = any(w in user_message.lower() for w in billing_keywords)
 
-
         search_info = ""
         
-        # 2. STEP ONE: Trigger Google Search if needed
-        if needs_search and not needs_billing :
-            search_session = self.client.chats.create(
-                model=self.model_id,
-                config=types.GenerateContentConfig(
-                    system_instruction="Analyze the user query and search for the latest Meralco/Manila Water rates (Current Date: {manila_time}). Summarize the findings briefly. IMPORTANT: Use only results from the past 3 months",
-                    tools=[types.Tool(google_search={})]
+        # 2. STEP ONE: If search needed, ask model to summarize web info (fallback: skip if service can't search)
+        if needs_search and not needs_billing:
+            try:
+                search_res = self.client.chat.completions.create(
+                    model=self.model_id,
+                    messages=[
+                        {"role": "system", "content": "Analyze the user query and search for the latest Meralco/Manila Water rates (Current Date: {manila_time}). Summarize the findings briefly. IMPORTANT: Use only results from the past 3 months"},
+                        {"role": "user", "content": f"Search for: {user_message}"},
+                    ],
                 )
-            )
-            search_res = search_session.send_message(f"Search for: {user_message}")
-            search_info = f"\n\n[LATEST RATES NEWS]: {search_res.text}"
+                search_info = f"\n\n[LATEST RATES NEWS]: {search_res.choices[0].message.content}"
+            except Exception as e:
+                logging.warning(f"Web-search summary step failed: {e}")
 
         # 3. STEP TWO: Main Chat with Billing Tools
-        # We "inject" the search info into the system prompt so the AI can use it
         augmented_prompt = self.system_prompt + (f"\n\nCURRENT CONTEXT FROM WEB: {search_info}" if search_info else "")
         chat_data = self.get_chat_data(chat_id)
-        chat_session = self.client.chats.create(
-            model=self.model_id,
-            config=types.GenerateContentConfig(
-                system_instruction=augmented_prompt,
-                tools=[get_latest_timer, get_complete_bill, get_readings, get_master_bills ],
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False)
-            ),
-            history=chat_data["history"] if chat_data["history"] else []
-        )
+        history = chat_data["history"] if chat_data["history"] else []
+        messages = [{"role": "system", "content": augmented_prompt}] + history + [{"role": "user", "content": user_message}]
 
         try:
-            response = chat_session.send_message(user_message)
-            # In the new SDK, chat_session.history is automatically updated
-            chat_data["history"] = chat_session.get_history()
+            response = self.client.chat.completions.create(
+                model=self.model_id,
+                messages=messages,
+                tools=self.tools,
+                tool_choice="auto",
+            )
+            msg = response.choices[0].message
+            MAX_TOOL_ITER = 10
+            iteration = 0
+            while msg.tool_calls and iteration < MAX_TOOL_ITER:
+                iteration += 1
+                messages.append({"role": "assistant",
+                                 "content": msg.content or "",
+                                 "tool_calls": [tc.model_dump() for tc in msg.tool_calls]
+                                 })
+                for tc in msg.tool_calls:
+                    fn_name = tc.function.name
+                    fn = callable_map.get(fn_name)
+                    if fn is None:
+                        tool_output = {"error": f"Unknown function {fn_name}"}
+                    else:
+                        args = json.loads(tc.function.arguments or "{}")
+                        tool_output = fn(**args)
+
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": json.dumps(tool_output, default=str),
+                    })
+
+                response = self.client.chat.completions.create(
+                    model=self.model_id,
+                    messages=messages,
+                    tools=self.tools,
+                    tool_choice="auto",
+                )
+                msg = response.choices[0].message
+
+            text_result = msg.content or "Action performed successfully."
+
+            # Save conversation history in OpenAI format
+            assistant_entry = {"role": "assistant", "content": text_result}
+            history = messages[1:] + [assistant_entry]
+            chat_data["history"] = [
+                {"role": m["role"], "content": m["content"]}
+                for m in history if isinstance(m.get("content"), str)
+            ]
             chat_data["timestamp"] = (datetime.now(timezone.utc) + timedelta(hours=12)).isoformat()
             self.save_chat_data(chat_data)
-            text_result = ""
-            if response.candidates:
-                for part in response.candidates[0].content.parts:
-                    if part.text:
-                        text_result += part.text
-
             
-            return text_result or "Action performed successfully.", chat_data["id"], chat_data.get("escalated", False)
+            return text_result, chat_data["id"], chat_data.get("escalated", False)
         except Exception as e:
             return f"Error: {str(e)}", chat_data["id"], True
 
 
-    def get_chat_data(self, chat_id:str):
-        
+    def get_chat_data(self, chat_id: str):
+        """Loads chat data from cache or Cosmos, or creates a new record."""
         if chat_id != "":
-            if(chat_id in _chat_cache):
+            if chat_id in _chat_cache:
                 return _chat_cache[chat_id]
             else:
                 now = datetime.now(timezone.utc)
@@ -227,58 +286,43 @@ class SupportChatManager:
                     parameters=parameters, partition_key=self.user_id)
 
                 item = next(result, None)
-                item_time = datetime.fromisoformat(item["timestamp"])
-
-                if(item_time > now): 
-                    item["history"] = self.deserialize_history(item["history"])
-                    return item
-            
-    
-        id = uuid7( as_type='str')
+                if item is None:
+                    pass
+                else:
+                    item_time = datetime.fromisoformat(item["timestamp"])
+                    if item_time > now:
+                        return item
+        
+        id = uuid7(as_type='str')
         new_item = {
-            "id":  id,
-            "timestamp" : (datetime.now(timezone.utc) + timedelta(hours=12)).isoformat(),
+            "id": id,
+            "timestamp": (datetime.now(timezone.utc) + timedelta(hours=12)).isoformat(),
             "history": [],
             "escalated": False,
-            "user_id" : self.user_id
+            "user_id": self.user_id
         }
         return new_item
 
 
-    def notif_escalation(self,user_name):
+    def notif_escalation(self, user_name):
         filtered_list = []
         chat_data = _chat_cache[self.chat_id]
         for entry in chat_data["history"]:
-            new_parts = [
-                part for part in entry.get("parts", [])
-                if "function_call" not in part and "function_response" not in part
-            ]
-            
-            # Only keep the entry if there are still parts left after filtering
-            if new_parts:
-                # We copy the entry to avoid modifying the original data
-                new_entry = entry.copy()
-                new_entry["parts"] = new_parts
-                filtered_list.append(new_entry)
+            filtered_list.append(entry)
 
-        
         prompt = (
             f"The following is a chat transcript. The AI has escalated this to a human (Kuya AR). "
             f"Provide a short, 3-bullet point summary of the user's concern and what info was already provided. "
             f"Transcript: {json.dumps(filtered_list)}"
         )
-        
 
-
-
-        summary_response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=prompt
+        summary_response = get_client().chat.completions.create(
+            model=get_model(),
+            messages=[{"role": "user", "content": prompt}],
         )
-        
-        summary_text = summary_response.text
-        
-        # 5. Trigger Notification
+        summary_text = summary_response.choices[0].message.content
+
+        # Trigger Notification
         chat_data["escalated"] = True
         
         db = get_db()
@@ -288,48 +332,9 @@ class SupportChatManager:
         return True
     
 
-    def save_chat_data(self,data):
+    def save_chat_data(self, data):
         db = get_db()
         container = db.get_container_client("Chats")
-        data["history"] = self.serialize_history(data["history"])
         container.upsert_item(data)
         _chat_cache[data["id"]] = data
         return data
-
-
-
-
-    @staticmethod
-    def serialize_history(history: List[types.Content]) -> List[dict]:
-        """
-        Converts Gemini Content objects into JSON-serializable dicts for Cosmos DB.
-        """
-        json_history = []
-        for content in history:
-            parts = []
-            for part in content.parts:
-                if part.text is not None:
-                    parts.append({'text': part.text})
-                elif part.function_call is not None:
-                    parts.append({'function_call': {
-                        'name': part.function_call.name,
-                        'args': part.function_call.args
-                    }})
-                elif part.function_response is not None:
-                    parts.append({'function_response': {
-                        'name': part.function_response.name,
-                        'response': part.function_response.response
-                    }})
-            
-            json_history.append({
-                'role': content.role,
-                'parts': parts
-            })
-        return json_history
-
-    @staticmethod
-    def deserialize_history(json_history: List[dict]) -> List[types.Content]:
-        """
-        Converts list of dicts from Cosmos DB back into types.Content objects.
-        """
-        return [types.Content(role=m['role'], parts=[types.Part(**p) for p in m['parts']]) for m in json_history]
