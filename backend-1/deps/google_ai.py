@@ -10,9 +10,34 @@ from deps.openai_client import get_client, get_vision_model
 model = get_vision_model()
 
 
+def _strip_json_fences(text: str) -> str:
+    """Remove markdown code fences some models wrap JSON in."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = stripped.strip("`")
+        # Drop a leading "json" language tag if present
+        if stripped.lower().startswith("json"):
+            stripped = stripped[4:]
+    return stripped.strip()
+
+
+def _parse_json_output(text: str):
+    """Parse model output as JSON, tolerating markdown code fences."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return json.loads(_strip_json_fences(text))
+
+
 def _chat(contents: list, temperature: float = 0.2) -> str:
     """Send a single non-chat completion request, return the text."""
-    messages = [{"role": "user", "content": contents}]
+    # Each content item must be an object like {"type": "text", ...};
+    # wrap any bare strings so text and media parts can be mixed freely.
+    content = [
+        part if isinstance(part, dict) else {"type": "text", "text": part}
+        for part in contents
+    ]
+    messages = [{"role": "user", "content": content}]
     response = get_client().chat.completions.create(
         model=model,
         messages=messages,
@@ -82,7 +107,7 @@ def identify_img_transact_ai(localpath, file_record):
         logging.error(e)
         raise
 
-    return json.loads(text)
+    return _parse_json_output(text)
 
 
 def extract_bill_info(localpath):
@@ -128,8 +153,7 @@ def extract_bill_info(localpath):
         text = _chat([prompt_fb])
         logging.warning("PDF file input failed; used fallback completion.")
 
-    return json.loads(text)
-
+    return _parse_json_output(text)
 
 
 # --- COSMOS DB DATA ARCHITECTURE EXAMPLE ---
