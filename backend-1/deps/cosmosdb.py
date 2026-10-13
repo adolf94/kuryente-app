@@ -1,6 +1,6 @@
 
 
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 import json
 import logging
@@ -65,7 +65,7 @@ def  utcstr_to_datetime(str):
     except ValueError:
         # Catch any malformed strings that don't match either format
         
-        return pytz.utc.localize(datetime(datetime.UTC))
+        return datetime.now(timezone.utc)
 
 
 def get_db(name = os.environ["COSMOS_DB"]):
@@ -154,8 +154,8 @@ def check_notifs_gcash(data):
     # specific checks (app package, transaction type, sender account) are
     # applied client-side over the returned ingestion records.
     dt = utcstr_to_datetime(data["datetime"])
-    start = (dt - timedelta(minutes=10)).astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    end = (dt + timedelta(minutes=10)).astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    start = (dt - timedelta(minutes=10)).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    end = (dt + timedelta(minutes=10)).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     results = search_ingestions(round(float(data["amount"]), 2), start, end)
 
