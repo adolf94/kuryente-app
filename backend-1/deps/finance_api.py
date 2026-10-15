@@ -22,7 +22,7 @@ def get_access_token():
 
     authority = os.environ["ATLAS_AUTH_AUTHORITY"].rstrip("/")
     resp = requests.post(
-        f"{authority}/connect/token",
+        f"{authority}/token",
         data={
             "grant_type": "client_credentials",
             "client_id": os.environ["ATLAS_AUTH_AUDIENCE"],
