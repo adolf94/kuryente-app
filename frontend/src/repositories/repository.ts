@@ -52,7 +52,19 @@ export const usePaymentMutation = ()=>{
         }
     })
 
-    return {add_admin, decide_admin}
+    // Re-runs the realtime GCash check for a pending payment the user just uploaded
+    const retry_payment = useMutation({
+        mutationFn:(id: string)=>{
+            return api.post("/retry_payment", { id }).then((res)=>{
+                return res.data
+            })
+        },
+        onSuccess:(data)=>{
+            queryClient.setQueryData<any[]>([PAYMENT], (prev)=>(prev||[]).map((p: any)=>p.id === data.data.id ? data.data : p))
+        }
+    })
+
+    return {add_admin, decide_admin, retry_payment}
 }
 
 

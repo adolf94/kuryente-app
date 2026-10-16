@@ -315,6 +315,62 @@ def payments(req:func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(json.dumps(items), mimetype="application/json", status_code=200)
 
 
+@app.route(route="retry_payment", methods=[func.HttpMethod.POST], auth_level=func.AuthLevel.ANONYMOUS)
+def retry_payment(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Lets the user re-trigger the realtime GCash check for a payment they just
+    uploaded, instead of waiting for manual validation.
+    """
+    user, error = verify_custom_jwt(req.headers.get("Authorization"))
+    if user is None:
+        return unauthorized_response(error)
+
+    body = req.get_json()
+    item = get_item_by_id("PaymentsUploads", body["id"])
+    if item is None:
+        return func.HttpResponse(json.dumps({"error": "Payment not found."}), mimetype="application/json", status_code=404)
+
+    if item.get("Status") != "Pending":
+        return func.HttpResponse(json.dumps({"error": "Only pending payments can be retried."}), mimetype="application/json", status_code=409)
+
+    file_data = item.get("File") or {}
+    if "gcash" not in str(file_data.get("recipientBank", "")).lower():
+        return func.HttpResponse(json.dumps({"error": "Realtime check is only available for GCash payments."}), mimetype="application/json", status_code=400)
+
+    # only applicable to payments that were just uploaded
+    window_minutes = int(os.environ.get("PAYMENT_RETRY_WINDOW_MINUTES", "30"))
+    date_added = datetime.datetime.strptime(item["DateAdded"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.UTC)
+    if datetime.datetime.now(datetime.UTC) - date_added > datetime.timedelta(minutes=window_minutes):
+        return func.HttpResponse(json.dumps({"error": f"The realtime check is only available within {window_minutes} minutes of uploading. Please wait for manual validation."}), mimetype="application/json", status_code=410)
+
+    # anti-spam: one retry per minute
+    last_retry = item.get("LastRetryAt")
+    if last_retry:
+        last = datetime.datetime.strptime(last_retry, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.UTC)
+        if datetime.datetime.now(datetime.UTC) - last < datetime.timedelta(minutes=1):
+            return func.HttpResponse(json.dumps({"error": "Please wait a minute before retrying."}), mimetype="application/json", status_code=429)
+
+    item["LastRetryAt"] = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    item["RetryCount"] = item.get("RetryCount", 0) + 1
+
+    new_timer = None
+    try:
+        result = list(check_notifs_gcash(file_data))
+    except Exception as ex:
+        logging.warning(f"retry_payment realtime check failed: {ex}")
+        item["Reason"] = f"Realtime check failed ({item['RetryCount']} attempt(s)). needs verification"
+    else:
+        if len(result) == 1:
+            new_timer = approve_payment_and_extend(item, notif=result[0])
+            item["Reason"] = f"Confirmed via realtime check ({item['RetryCount']} attempt(s))"
+            send_sms(os.environ["SMS_NUMBER"], f"FYI: New payment ({file_data.get('recipientBank')}) from kuryente-app has been auto approved via retry!---{item['id']}")
+        else:
+            item["Reason"] = f"Found {len(result)} matching the payment. needs verification (retried {item['RetryCount']}x)"
+    add_to_app("PaymentsUploads", item)
+
+    return func.HttpResponse(json.dumps({"data": item, "new_timer": new_timer}), mimetype="application/json", status_code=200)
+
+
 @app.route(route="bills", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
 def bills(req:func.HttpRequest) -> func.HttpResponse:
 
@@ -399,6 +455,36 @@ def add_reading(req: func.HttpRequest) -> func.HttpResponse:
 
     return func.HttpResponse(json.dumps(body),mimetype="application/json",  status_code=201)
 
+
+
+def approve_payment_and_extend(payment, notif=None):
+    """
+    Marks a payment as Approved, records the matching ingestion notif (if given),
+    extends the disconnect timer, switches the device on, and returns the new
+    TimerDetails entry.
+    """
+    current_timer = get_latest_from_container("TimerDetails")
+    last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
+    days_to_add = math.floor((float(payment["File"]["amount"]) + current_timer.get("Excess", 0)) / current_timer["Rate"])
+    excess_amount = float(payment["File"]["amount"]) - (current_timer["Rate"] * days_to_add)
+    new_disconnect_time = get_disconnect_time(pytz.utc.localize(last_disconnect_time)) + datetime.timedelta(days=days_to_add)
+
+    payment["Days"] = days_to_add
+    payment["Status"] = "Approved"
+    if notif is not None:
+        payment["notif"] = notif
+
+    new_data = {
+        "id": uuid7str(),
+        "PartitionKey": "default",
+        "DisconnectTime": new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "PaymentId": payment["id"],
+        "Excess": excess_amount,
+        "Rate": compute_daily()
+    }
+    switch_device(True)
+    add_to_app("TimerDetails", new_data)
+    return new_data
 
 
 @app.route(route="confirm_payment", auth_level=func.AuthLevel.ANONYMOUS)

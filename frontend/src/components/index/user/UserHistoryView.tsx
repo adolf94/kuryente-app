@@ -24,7 +24,8 @@ import {
 import ViewImageDialog from '../admin/ViewImageDialog'
 import moment from 'moment'
 import numeral from 'numeral'
-import { useAllBills, useAllPayments, useAllReading } from '../../../repositories/repository'
+import { useAllBills, useAllPayments, useAllReading, usePaymentMutation } from '../../../repositories/repository'
+import { Alert } from '@mui/material'
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -60,6 +61,33 @@ const UserHistoryView = () => {
     const { data: bills = [] } = useAllBills({ unsetPlaceholder: true })
     const { data: payments = [] } = useAllPayments({ unsetPlaceholder: true })
     const { data: readings = [] } = useAllReading({ unsetPlaceholder: true })
+
+    const { retry_payment } = usePaymentMutation()
+    const [retryMessage, setRetryMessage] = useState<{ id: string, text: string, severity: "success" | "warning" | "error" } | null>(null)
+
+    // realtime retry is only offered for pending GCash payments just uploaded
+    const RETRY_WINDOW_MINUTES = 30
+    const canRetryRealtime = (pay: any) =>
+        pay.Status === 'Pending' &&
+        (pay.File?.recipientBank || '').toLowerCase().indexOf('gcash') > -1 &&
+        moment(pay.DateAdded).isAfter(moment().subtract(RETRY_WINDOW_MINUTES, 'minutes'))
+
+    const handleRetry = (pay: any) => {
+        setRetryMessage({ id: pay.id, text: 'Re-checking GCash notifications…', severity: 'warning' })
+        retry_payment.mutate(pay.id, {
+            onSuccess: (data: any) => {
+                if (data?.data?.Status === 'Approved') {
+                    setRetryMessage({ id: pay.id, text: 'Payment verified! Extension applied.', severity: 'success' })
+                } else {
+                    setRetryMessage({ id: pay.id, text: 'Still no matching GCash notification yet. You can retry in a minute.', severity: 'warning' })
+                }
+            },
+            onError: (ex: any) => {
+                const msg = ex?.response?.data?.error || 'Something went wrong. Please try again later.'
+                setRetryMessage({ id: pay.id, text: msg, severity: 'error' })
+            }
+        })
+    }
 
     const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
@@ -298,9 +326,25 @@ const UserHistoryView = () => {
                                         {pay.File?.fileId && (
                                             <ViewImageDialog fileId={pay.File.fileId} />
                                         )}
+                                        {canRetryRealtime(pay) && (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                color="warning"
+                                                disabled={retry_payment.isPending}
+                                                onClick={() => handleRetry(pay)}
+                                            >
+                                                {retry_payment.isPending && retryMessage?.id === pay.id ? 'Checking…' : 'Retry'}
+                                            </Button>
+                                        )}
                                         {getStatusChip(pay.Status || 'Approved')}
                                     </Stack>
                                 </Stack>
+                                {retryMessage?.id === pay.id && (
+                                    <Alert severity={retryMessage?.severity} sx={{ mt: 2 }} onClose={() => setRetryMessage(null)}>
+                                        {retryMessage?.text}
+                                    </Alert>
+                                )}
                             </CardContent>
                         </Card>
                     ))}
