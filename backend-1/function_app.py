@@ -26,7 +26,80 @@ app.register_functions(bp)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', "jfif"}  # Allowed file types
 
-cached_files = {}
+cached_files = {}  # fileId -> {"data": <ai parsed response>, "cached_at": <utc datetime>}
+
+
+def _file_cache_ttl():
+    """How long a parsed AI response stays valid, in minutes (from the moment
+    the AI responded)."""
+    try:
+        return float(os.environ.get("FILE_CACHE_TTL_MINUTES", "10"))
+    except (TypeError, ValueError):
+        return 10.0
+
+
+def cache_ai_response(file_id, data):
+    """Cache the parsed AI response; expiry is measured from when the AI
+    responded, so slow AI completions still get the full TTL window."""
+    cached_files[file_id] = {
+        "data": data,
+        "cached_at": datetime.datetime.now(datetime.UTC),
+    }
+
+
+def get_cached_ai_response(file_id):
+    """Returns (data, None) on hit, or (None, 'expired' | 'not_found')."""
+    entry = cached_files.get(file_id)
+    if entry is None:
+        return None, "not_found"
+    if datetime.datetime.now(datetime.UTC) - entry["cached_at"] > datetime.timedelta(minutes=_file_cache_ttl()):
+        del cached_files[file_id]
+        return None, "expired"
+    return entry["data"], None
+
+
+def resolve_ai_response(file_id):
+    """
+    Resolves the parsed AI response for a fileId, preferring the in-memory cache
+    and falling back to the parse persisted in the Files container (survives
+    worker restarts and uploads whose AI call finished late).
+
+    Returns (data, error_status) where error_status is None on success, else
+    "expired" | "processing" (upload exists but AI has not responded yet) |
+    "not_found".
+    """
+    data, status = get_cached_ai_response(file_id)
+    if data is not None:
+        return data, None
+
+    record = get_file_by_id(file_id)
+    if record is None:
+        return None, "not_found"
+
+    parsed = record.get("Parsed")
+    if parsed is None:
+        return None, "processing"
+
+    parsed_at = record.get("ParsedAt")
+    if parsed_at:
+        age = datetime.datetime.now(datetime.UTC) - datetime.datetime.strptime(parsed_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.UTC)
+        if age > datetime.timedelta(minutes=_file_cache_ttl()):
+            return None, "expired"
+
+    cache_ai_response(file_id, parsed)
+    return parsed, None
+
+
+def persist_parsed_to_files(file_id, parsed):
+    """Stores the parsed AI response on the Files record so confirm_payment can
+    still resolve it after worker restarts or slow AI responses."""
+    record = get_file_by_id(file_id)
+    if record is None:
+        logging.warning(f"persist_parsed_to_files: file record not found for {file_id}")
+        return
+    record["Parsed"] = parsed
+    record["ParsedAt"] = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    add_to_finance("Files", record)
 
 def unauthorized_response(reason: str):
     return func.HttpResponse(
@@ -105,7 +178,8 @@ def upload_proof(req: func.HttpRequest) -> func.HttpResponse:
     ai_response = identify_img_transact_ai(localpath=local_file_path, file_record=record)
 
     ai_response["fileId"] = id
-    cached_files[id] = ai_response
+    cache_ai_response(id, ai_response)
+    persist_parsed_to_files(id, ai_response)
 
     return func.HttpResponse(
         json.dumps(ai_response), mimetype="application/json", status_code=200)
@@ -501,11 +575,16 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
         "name" : user.get("name") or user.get("email") or user.get("userId") or "Anonymous User",
         "email" : user.get("email") or "no-email@kuryente.app"
     }
-    if body["fileId"] not in cached_files:
-         return func.HttpResponse(json.dumps({"error": "File information is not found or expired. Please try again."}), mimetype="application/json", status_code=400)
+    ai_data, file_status = resolve_ai_response(body["fileId"])
+    if ai_data is None:
+        messages = {
+            "expired": "File information has expired. Please upload the payment screenshot again.",
+            "processing": "The payment screenshot is still being processed. Please try again in a few seconds.",
+            "not_found": "File information is not found. Please upload the payment screenshot again.",
+        }
+        return func.HttpResponse(json.dumps({"error": messages.get(file_status, "File information is not found or expired. Please try again.")}), mimetype="application/json", status_code=409 if file_status == "processing" else 400)
 
     #verify for same reference id
-    ai_data = cached_files[body["fileId"]]
     if(ai_data["isValid"] == False):
         return func.HttpResponse(json.dumps({"error": "File information is not found or expired. Please try again."}), mimetype="application/json", status_code=400)
 
@@ -617,11 +696,6 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
                 "new_timer" : None if new_data is None else new_data
             }
         return func.HttpResponse(json.dumps(output),mimetype="application/json",  status_code=200)
-
-
-
-    return func.HttpResponse(
-        json.dumps(cached_files[body["fileId"]]), mimetype="application/json", status_code=200)
 
 
 @app.route(route="masterbills/{date}", methods=[func.HttpMethod.GET], auth_level=func.AuthLevel.ANONYMOUS)
