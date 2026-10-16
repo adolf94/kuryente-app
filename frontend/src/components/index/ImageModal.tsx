@@ -72,7 +72,7 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
                     description: "Service should be reinstated in a few moments if it was disconnected"
                 }
             } else {
-                if (!res.data?.data?.reason) {
+                if (!res.data?.data?.Reason) {
                     data = {
                         title: "Pending",
                         variant: "warning",
@@ -111,7 +111,7 @@ const ImageModal = ({ timer, onComplete = () => { } }: ImageModalProps) => {
     const computation = useMemo(() => {
         if (!result) return { days: null, endDate: null }
         const days = calculateDays(result.amount, result.transactionFee)
-        const endDate = moment(timer.DisconnectTime).isBefore(moment()) ? "" : moment(timer.DisconnectTime).add(days, "days").format("MMM DD")
+        const endDate = !timer?.DisconnectTime || moment(timer.DisconnectTime).isBefore(moment()) ? "" : moment(timer.DisconnectTime).add(days, "days").format("MMM DD")
 
         return {
             days,

@@ -119,7 +119,7 @@ const Index = () => {
                                     <ImageModal
                                         timer={timer}
                                         onComplete={(data: any) => {
-                                            setTimer(data.new_timer);
+                                            if (data.new_timer) setTimer(data.new_timer);
                                             navigate({ to: '/user' });
                                         }}
                                     />
