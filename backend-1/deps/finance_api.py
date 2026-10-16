@@ -58,7 +58,7 @@ def search_ingestions(amount, start_time=None, end_time=None):
 
     for attempt in (1, 2):
         resp = requests.get(
-            f"{base_url}/ingestions/search",
+            f"{base_url}/ingestion-search",
             params=params,
             headers={"Authorization": f"Bearer {get_access_token()}"},
             timeout=30,
