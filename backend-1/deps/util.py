@@ -5,23 +5,10 @@ import pytz
 
 
 
-def get_disconnect_time_for_disconnected():
-
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
-    # 2. Add 16 hours
-    after_16_hours = now_utc + datetime.timedelta(hours=12)
-
-    # 3. Set the hour to 6:00 AM
-    final_time = after_16_hours.replace(hour=6, minute=0, second=0, microsecond=0)
-    return final_time
-
 def get_disconnect_time(last_date):
-    if_disconnected = get_disconnect_time_for_disconnected()
-
-    if(if_disconnected < last_date):
-        if_disconnected = last_date
-
-    return if_disconnected
+    # Extensions are always anchored to the last stored DisconnectTime,
+    # even when the service is already disconnected — never to the current date.
+    return last_date
 
 
 def date_diff_with_tz(date_start, ds_timezone, date_end, de_timezone):
