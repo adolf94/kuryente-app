@@ -68,7 +68,7 @@ export const UnbilledBillCard = ({payments} : {payments: any})=>{
 
     const paymentAfter = useMemo(()=>{
         return payments.filter((e: any)=>{
-           return e.DateAdded > bill?.dateEnd
+           return e.Status == "Approved" && e.DateAdded > bill?.dateEnd
         }).reduce((prev: number,cur: any)=>{
             return prev + cur.File.amount
         },0)
