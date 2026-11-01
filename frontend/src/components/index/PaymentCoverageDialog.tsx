@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Alert, Box, Button, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from "@mui/material"
+import { Alert, Box, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from "@mui/material"
 import { Close } from "@mui/icons-material"
 import moment from "moment"
 import numeral from "numeral"
@@ -35,17 +35,21 @@ const PaymentCoverageDialog = ({ payment, variant = "text" }: { payment: any, va
         {variant === "chip" ? (
             <Chip size="small" variant="outlined" color="success" label={coverage} onClick={() => setOpen(true)} sx={{ cursor: 'pointer' }} />
         ) : (
-            <Button
-                size="small"
+            <Typography
+                variant="caption"
+                component="span"
+                role="button"
+                tabIndex={0}
                 onClick={() => setOpen(true)}
+                onKeyDown={(evt: any) => { if (evt.key === "Enter" || evt.key === " ") setOpen(true) }}
                 sx={{
-                    p: 0, minWidth: 0, textTransform: 'none', textAlign: 'left',
-                    color: 'text.secondary', justifyContent: 'flex-start',
-                    '&:hover': { bgcolor: 'transparent', color: 'primary.main' }
+                    display: 'inline-block', width: 'fit-content',
+                    cursor: 'pointer', color: 'text.secondary',
+                    '&:hover': { color: 'primary.main', textDecoration: 'underline' }
                 }}
             >
                 Covers: {coverage}
-            </Button>
+            </Typography>
         )}
 
         <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth>
