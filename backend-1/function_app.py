@@ -246,7 +246,8 @@ def record_payment(req: func.HttpRequest) -> func.HttpResponse:
     new_item["CoverageStart"] = current_timer["DisconnectTime"]
     new_item["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
     new_item["CoverageRate"] = current_timer["Rate"]
-    new_item["CoverageExcess"] = 0  # manual payments never create excess
+    new_item["CoverageExcess"] = 0  # manual payments never compute excess
+    new_item["CoverageCredit"] = 0  # days are entered manually, no prior credit is applied
     add_to_app("PaymentsUploads", new_item)
     new_daily = compute_daily()
     new_data = {
@@ -370,6 +371,7 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
         item["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
         item["CoverageRate"] = current_timer["Rate"]
         item["CoverageExcess"] = excess_amount
+        item["CoverageCredit"] = current_timer.get("Excess", 0)
         add_to_app("TimerDetails",new_data)
 
     else:
@@ -405,6 +407,7 @@ def payments(req:func.HttpRequest) -> func.HttpResponse:
     timers.sort(key=lambda t: t["DisconnectTime"])
     coverages = {}
     prev_end = None
+    prev_excess = None
     for t in timers:
         end = t["DisconnectTime"]
         pid = t.get("PaymentId")
@@ -413,9 +416,11 @@ def payments(req:func.HttpRequest) -> func.HttpResponse:
                 **({"CoverageStart": prev_end} if prev_end else {}),
                 "CoverageEnd": end,
                 **({"CoverageRate": t["Rate"]} if t.get("Rate") is not None else {}),
-                **({"CoverageExcess": t["Excess"]} if t.get("Excess") is not None else {})
+                **({"CoverageExcess": t["Excess"]} if t.get("Excess") is not None else {}),
+                **({"CoverageCredit": prev_excess} if prev_excess else {})
             }
         prev_end = end
+        prev_excess = t.get("Excess")
 
     for item in items:
         if item.get("Status") != "Approved":
@@ -590,6 +595,7 @@ def approve_payment_and_extend(payment, notif=None):
     payment["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
     payment["CoverageRate"] = current_timer["Rate"]
     payment["CoverageExcess"] = excess_amount
+    payment["CoverageCredit"] = current_timer.get("Excess", 0)
     if notif is not None:
         payment["notif"] = notif
 
@@ -711,6 +717,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
             data["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
             data["CoverageRate"] = current_timer["Rate"]
             data["CoverageExcess"] = excess_amount
+            data["CoverageCredit"] = current_timer.get("Excess", 0)
             add_to_app("PaymentsUploads", data)
             # if(last_disconnect_time > datetime.datetime.now(datetime.UTC)):
             #     last_disconnect_time = datetime.datetime.now(datetime.UTC)

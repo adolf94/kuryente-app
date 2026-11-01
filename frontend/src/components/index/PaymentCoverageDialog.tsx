@@ -17,9 +17,7 @@ const PaymentCoverageDialog = ({ payment, variant = "text" }: { payment: any, va
     if (!coverage) return null
 
     const days = Number.parseFloat(payment.Days ?? 0)
-    const perDay = payment.CoverageRate
-        ? numeral(payment.CoverageRate).format("0,0.00")
-        : (days > 0 ? numeral(Number.parseFloat(payment.File?.amount) / days).format("0,0.00") : "—")
+    const perDay = payment.CoverageRate != null ? numeral(payment.CoverageRate).format("0,0.00") : "—"
 
     const excess = Number.parseFloat(payment.CoverageExcess ?? 0) || 0
     const excessNode = excess != 0 ? (
@@ -36,15 +34,34 @@ const PaymentCoverageDialog = ({ payment, variant = "text" }: { payment: any, va
         </Tooltip>
     ) : null
 
+    const credit = Number.parseFloat(payment.CoverageCredit ?? 0) || 0
+    const creditNode = credit > 0 ? (
+        <Tooltip title="Amount carried over from previous payments that was added to and applied by this payment.">
+            <Chip
+                size="small"
+                variant="outlined"
+                color="primary"
+                label={`Credit +₱${numeral(credit).format("0,0.00")}`}
+                sx={{ cursor: 'help' }}
+            />
+        </Tooltip>
+    ) : null
+
     const dayFmt = (d: any) => d ? moment(d).format("MMM DD, YYYY") : "—"
     const rowValue = (value: any) => <Typography variant="body1" fontWeight={700} noWrap>{value}</Typography>
 
     const rows = [
-        { label: "Amount Paid", value: rowValue(`₱${numeral(payment.File?.amount).format("0,0.00")}`) },
+        {
+            label: "Amount Paid",
+            value: <Box display="flex" alignItems="center" justifyContent="flex-end" gap={1}>
+                {rowValue(`₱${numeral(payment.File?.amount).format("0,0.00")}`)}
+                {creditNode}
+            </Box>
+        },
         {
             label: "Per Day",
             value: <Box display="flex" alignItems="center" justifyContent="flex-end" gap={1}>
-                {rowValue(`₱${perDay}${!payment.CoverageRate && days > 0 ? " (est.)" : ""}`)}
+                {rowValue(`₱${perDay}`)}
                 {excessNode}
             </Box>
         },
