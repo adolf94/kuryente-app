@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Alert, Box, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from "@mui/material"
+import { Alert, Box, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Tooltip, Typography } from "@mui/material"
 import { Close } from "@mui/icons-material"
 import moment from "moment"
 import numeral from "numeral"
@@ -21,14 +21,36 @@ const PaymentCoverageDialog = ({ payment, variant = "text" }: { payment: any, va
         ? numeral(payment.CoverageRate).format("0,0.00")
         : (days > 0 ? numeral(Number.parseFloat(payment.File?.amount) / days).format("0,0.00") : "—")
 
+    const excess = Number.parseFloat(payment.CoverageExcess ?? 0) || 0
+    const excessNode = excess != 0 ? (
+        <Tooltip title={excess > 0
+            ? "Leftover amount from this payment (after rounding down whole days). It is carried over and applied to your next payment."
+            : "A portion of previously carried-over amount was consumed by this payment. It was deducted from your next payment."}>
+            <Chip
+                size="small"
+                variant="outlined"
+                color={excess > 0 ? "warning" : "info"}
+                label={excess > 0 ? `Excess ₱${numeral(excess).format("0,0.00")}` : `Credit used ₱${numeral(-excess).format("0,0.00")}`}
+                sx={{ cursor: 'help' }}
+            />
+        </Tooltip>
+    ) : null
+
     const dayFmt = (d: any) => d ? moment(d).format("MMM DD, YYYY") : "—"
+    const rowValue = (value: any) => <Typography variant="body1" fontWeight={700} noWrap>{value}</Typography>
 
     const rows = [
-        { label: "Amount Paid", value: `₱${numeral(payment.File?.amount).format("0,0.00")}` },
-        { label: "Per Day", value: `₱${perDay}${!payment.CoverageRate && days > 0 ? " (est.)" : ""}` },
-        { label: "Days Covered", value: days > 0 ? `${days} ${days == 1 ? "day" : "days"}` : "—" },
-        { label: "Coverage Start", value: dayFmt(payment.CoverageStart) },
-        { label: "Coverage End", value: dayFmt(payment.CoverageEnd) },
+        { label: "Amount Paid", value: rowValue(`₱${numeral(payment.File?.amount).format("0,0.00")}`) },
+        {
+            label: "Per Day",
+            value: <Box display="flex" alignItems="center" justifyContent="flex-end" gap={1}>
+                {rowValue(`₱${perDay}${!payment.CoverageRate && days > 0 ? " (est.)" : ""}`)}
+                {excessNode}
+            </Box>
+        },
+        { label: "Days Covered", value: rowValue(days > 0 ? `${days} ${days == 1 ? "day" : "days"}` : "—") },
+        { label: "Coverage Start", value: rowValue(dayFmt(payment.CoverageStart)) },
+        { label: "Coverage End", value: rowValue(dayFmt(payment.CoverageEnd)) },
     ]
 
     return <>
@@ -64,7 +86,7 @@ const PaymentCoverageDialog = ({ payment, variant = "text" }: { payment: any, va
                     {rows.map(row => (
                         <Box key={row.label} py={1.5} display="flex" justifyContent="space-between" alignItems="center" gap={2}>
                             <Typography variant="body2" color="text.secondary" fontWeight={600}>{row.label}</Typography>
-                            <Typography variant="body1" fontWeight={700} noWrap>{row.value}</Typography>
+                            {row.value}
                         </Box>
                     ))}
                 </Stack>

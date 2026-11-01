@@ -246,6 +246,7 @@ def record_payment(req: func.HttpRequest) -> func.HttpResponse:
     new_item["CoverageStart"] = current_timer["DisconnectTime"]
     new_item["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
     new_item["CoverageRate"] = current_timer["Rate"]
+    new_item["CoverageExcess"] = 0  # manual payments never create excess
     add_to_app("PaymentsUploads", new_item)
     new_daily = compute_daily()
     new_data = {
@@ -368,6 +369,7 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
         item["CoverageStart"] = current_timer["DisconnectTime"]
         item["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
         item["CoverageRate"] = current_timer["Rate"]
+        item["CoverageExcess"] = excess_amount
         add_to_app("TimerDetails",new_data)
 
     else:
@@ -410,7 +412,8 @@ def payments(req:func.HttpRequest) -> func.HttpResponse:
             coverages[pid] = {
                 **({"CoverageStart": prev_end} if prev_end else {}),
                 "CoverageEnd": end,
-                **({"CoverageRate": t["Rate"]} if t.get("Rate") is not None else {})
+                **({"CoverageRate": t["Rate"]} if t.get("Rate") is not None else {}),
+                **({"CoverageExcess": t["Excess"]} if t.get("Excess") is not None else {})
             }
         prev_end = end
 
@@ -586,6 +589,7 @@ def approve_payment_and_extend(payment, notif=None):
     payment["CoverageStart"] = current_timer["DisconnectTime"]
     payment["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
     payment["CoverageRate"] = current_timer["Rate"]
+    payment["CoverageExcess"] = excess_amount
     if notif is not None:
         payment["notif"] = notif
 
@@ -706,6 +710,7 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
             data["CoverageStart"] = current_timer["DisconnectTime"]
             data["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
             data["CoverageRate"] = current_timer["Rate"]
+            data["CoverageExcess"] = excess_amount
             add_to_app("PaymentsUploads", data)
             # if(last_disconnect_time > datetime.datetime.now(datetime.UTC)):
             #     last_disconnect_time = datetime.datetime.now(datetime.UTC)
