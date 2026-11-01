@@ -17,6 +17,7 @@ import AddMasterBillDialog from '../../components/index/admin/AddMasterBillDialo
 import AdminMetricCard from '../../components/index/admin/AdminMetricCard'
 import AdminBillDetailsDialog from '../../components/index/admin/AdminBillDetailsDialog'
 import ViewReadingsDialog from '../../components/index/admin/ViewReadingsDialog'
+import { formatPaymentCoverage } from '../../utils/paymentCoverage'
 
 export const Route = createFileRoute('/admin/')({
   component: RouteComponent,
@@ -142,7 +143,7 @@ function RouteComponent() {
               {payment.File?.fileId && <ViewImageDialog fileId={payment.File.fileId} />}
               <Typography variant="body2">{payment.File?.recipientBank || 'Cash'}</Typography>
             </Stack>
-            <Chip size="small" variant="outlined" label={`${payment.File?.days || 0}D @ ₱150`} color={(payment.File?.days || 0) > 0 ? "success" : "default"} />
+            <Chip size="small" variant="outlined" label={formatPaymentCoverage(payment) || `${payment.File?.days || 0}D @ ₱150`} color={(payment.File?.days || 0) > 0 ? "success" : "default"} />
           </Box>
         </Stack>
       </CardContent>
@@ -372,6 +373,7 @@ function RouteComponent() {
                           <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Source & Receipt</TableCell>
                           <TableCell sx={{ fontWeight: 600, textAlign: 'right' }}>Amount</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Coverage</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                         </TableRow>
                       </TableHead>
@@ -388,6 +390,7 @@ function RouteComponent() {
                             <TableCell sx={{ textAlign: "right", fontWeight: 600 }}>
                               ₱{numeral(e.File?.amount).format("0,0.00")}
                             </TableCell>
+                            <TableCell>{formatPaymentCoverage(e) || '—'}</TableCell>
                             <TableCell>
                               <StatusChip value={e.Status} size="small" />
                             </TableCell>

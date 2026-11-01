@@ -242,6 +242,10 @@ def record_payment(req: func.HttpRequest) -> func.HttpResponse:
     current_timer = get_latest_from_container("TimerDetails")
     last_disconnect_time = datetime.datetime.strptime(current_timer["DisconnectTime"], "%Y-%m-%dT%H:%M:%SZ")
     new_disconnect_time = last_disconnect_time + datetime.timedelta(days=body["days"])
+    # coverage range this payment funds: from the previous cutoff to the new one
+    new_item["CoverageStart"] = current_timer["DisconnectTime"]
+    new_item["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    add_to_app("PaymentsUploads", new_item)
     new_daily = compute_daily()
     new_data = {
         "id": uuid7str(),
@@ -359,6 +363,9 @@ def decide_payment(req: func.HttpRequest) -> func.HttpResponse:
         }
         switch_device(True)
         item["Days"] = days_to_add
+        # coverage range this payment funds: from the previous cutoff to the new one
+        item["CoverageStart"] = current_timer["DisconnectTime"]
+        item["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
         add_to_app("TimerDetails",new_data)
 
     else:
@@ -386,6 +393,33 @@ def payments(req:func.HttpRequest) -> func.HttpResponse:
     
     
     items = get_all_container("PaymentsUploads")
+
+    # Backfill coverage ranges for payments approved before CoverageStart/CoverageEnd
+    # was stored. Each approved payment maps to a TimerDetails entry; its coverage
+    # starts at the previous entry's DisconnectTime and ends at its own.
+    timers = [t for t in get_all_container("TimerDetails") if t.get("DisconnectTime")]
+    timers.sort(key=lambda t: t["DisconnectTime"])
+    coverages = {}
+    prev_end = None
+    for t in timers:
+        end = t["DisconnectTime"]
+        pid = t.get("PaymentId")
+        if pid and pid not in coverages:
+            coverages[pid] = {
+                **({"CoverageStart": prev_end} if prev_end else {}),
+                "CoverageEnd": end
+            }
+        prev_end = end
+
+    for item in items:
+        if item.get("Status") != "Approved":
+            continue
+        if "CoverageEnd" in item:
+            continue
+        cov = coverages.get(item["id"])
+        if cov:
+            item.update(cov)
+
     return func.HttpResponse(json.dumps(items), mimetype="application/json", status_code=200)
 
 
@@ -545,6 +579,9 @@ def approve_payment_and_extend(payment, notif=None):
 
     payment["Days"] = days_to_add
     payment["Status"] = "Approved"
+    # coverage range this payment funds: from the previous cutoff to the new one
+    payment["CoverageStart"] = current_timer["DisconnectTime"]
+    payment["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
     if notif is not None:
         payment["notif"] = notif
 
@@ -661,6 +698,9 @@ def confirm_payment(req: func.HttpRequest) -> func.HttpResponse:
             }
             switch_device(True)
             add_to_app("TimerDetails",new_data)
+            # coverage range this payment funds: from the previous cutoff to the new one
+            data["CoverageStart"] = current_timer["DisconnectTime"]
+            data["CoverageEnd"] = new_disconnect_time.strftime("%Y-%m-%dT%H:%M:%SZ")
             add_to_app("PaymentsUploads", data)
             # if(last_disconnect_time > datetime.datetime.now(datetime.UTC)):
             #     last_disconnect_time = datetime.datetime.now(datetime.UTC)

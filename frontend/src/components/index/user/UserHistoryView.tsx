@@ -26,6 +26,7 @@ import moment from 'moment'
 import numeral from 'numeral'
 import { useAllBills, useAllPayments, useAllReading, usePaymentMutation } from '../../../repositories/repository'
 import { Alert } from '@mui/material'
+import { formatPaymentCoverage } from '../../../utils/paymentCoverage'
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -321,6 +322,11 @@ const UserHistoryView = () => {
                                         <Typography variant="caption" color="text.disabled" fontWeight={700}>
                                             By: {pay.PaymentBy?.name || pay.PaymentBy?.email || pay.PaymentBy || 'Unknown'}
                                         </Typography>
+                                        {formatPaymentCoverage(pay) && (
+                                            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ display: 'block' }}>
+                                                Covers: {formatPaymentCoverage(pay)}
+                                            </Typography>
+                                        )}
                                     </Box>
                                     <Stack direction="row" spacing={1} alignItems="center">
                                         {pay.File?.fileId && (

@@ -9,6 +9,7 @@ import { useAllPayments } from '../../../repositories/repository'
 import StatusChip from '../../../components/index/admin/StatusChip'
 import api from '../../../utils/api'
 import ViewMasterBillDialog from '../../../components/index/user/ViewMasterBillDialog'
+import { formatPaymentCoverage } from '../../../utils/paymentCoverage'
 
 export const Route = createFileRoute('/user/bills/current')({
     component: RouteComponent,
@@ -164,6 +165,11 @@ function RouteComponent() {
                                     <Typography variant="body2" color="text.secondary" display="block">
                                         {moment(item.DateAdded).format("MMM DD, YYYY")} • By: {item.PaymentBy?.name || item.PaymentBy?.email || item.PaymentBy}
                                     </Typography>
+                                    {formatPaymentCoverage(item) && (
+                                        <Typography variant="caption" color="text.secondary" display="block">
+                                            Covers: {formatPaymentCoverage(item)}
+                                        </Typography>
+                                    )}
                                 </Box>
                                 <Box sx={{ flex: '0 0 auto', textAlign: { xs: 'left', sm: 'right' }, mt: { xs: 1, sm: 0 }, width: { xs: '100%', sm: 'auto' } }}>
                                     <Typography variant="subtitle1" fontWeight="600" color="text.primary">
