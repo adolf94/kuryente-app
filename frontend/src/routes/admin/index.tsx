@@ -17,6 +17,7 @@ import AddMasterBillDialog from '../../components/index/admin/AddMasterBillDialo
 import AdminMetricCard from '../../components/index/admin/AdminMetricCard'
 import AdminBillDetailsDialog from '../../components/index/admin/AdminBillDetailsDialog'
 import ViewReadingsDialog from '../../components/index/admin/ViewReadingsDialog'
+import PaymentCoverageDialog from '../../components/index/PaymentCoverageDialog'
 import { formatPaymentCoverage } from '../../utils/paymentCoverage'
 
 export const Route = createFileRoute('/admin/')({
@@ -143,7 +144,9 @@ function RouteComponent() {
               {payment.File?.fileId && <ViewImageDialog fileId={payment.File.fileId} />}
               <Typography variant="body2">{payment.File?.recipientBank || 'Cash'}</Typography>
             </Stack>
-            <Chip size="small" variant="outlined" label={formatPaymentCoverage(payment) || `${payment.File?.days || 0}D @ ₱150`} color={(payment.File?.days || 0) > 0 ? "success" : "default"} />
+            {formatPaymentCoverage(payment)
+                ? <PaymentCoverageDialog payment={payment} variant="chip" />
+                : <Chip size="small" variant="outlined" label={`${payment.File?.days || 0}D @ ₱150`} color={(payment.File?.days || 0) > 0 ? "success" : "default"} />}
           </Box>
         </Stack>
       </CardContent>
@@ -390,7 +393,7 @@ function RouteComponent() {
                             <TableCell sx={{ textAlign: "right", fontWeight: 600 }}>
                               ₱{numeral(e.File?.amount).format("0,0.00")}
                             </TableCell>
-                            <TableCell>{formatPaymentCoverage(e) || '—'}</TableCell>
+                            <TableCell>{formatPaymentCoverage(e) ? <PaymentCoverageDialog payment={e} variant="chip" /> : '—'}</TableCell>
                             <TableCell>
                               <StatusChip value={e.Status} size="small" />
                             </TableCell>

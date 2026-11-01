@@ -3,7 +3,7 @@ import moment from "moment"
 import ViewImageDialog from "../admin/ViewImageDialog"
 import StatusChip from "../admin/StatusChip"
 import numeral from 'numeral'
-import { formatPaymentCoverage } from "../../../utils/paymentCoverage"
+import PaymentCoverageDialog from "../PaymentCoverageDialog"
 
 export const LoadingPaymentCard = ()=>{
     return <ListItem divider>
@@ -37,11 +37,7 @@ const PaymentCard = ({payment : e} : {payment: any})=>{
                     <Typography variant="body2" color="text.secondary">
                         By: {e.PaymentBy?.name || e.PaymentBy?.email || e.PaymentBy}
                     </Typography>
-                    {formatPaymentCoverage(e) && (
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                            Covers: {formatPaymentCoverage(e)}
-                        </Typography>
-                    )}
+                    <PaymentCoverageDialog payment={e} />
                 </Box>
             }
             sx={{ m: 0 }}
